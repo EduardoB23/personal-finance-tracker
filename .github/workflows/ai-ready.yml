@@ -1,11 +1,12 @@
 # Automação AI-READY: issue do Linear com a label AI-READY vira plano, implementação e PR.
-# A consulta ao Linear é um script sem IA (zero tokens quando não há issue); o Claude só roda
+# A consulta ao Linear é um script sem IA (zero tokens quando não há issue), uma vez por hora para
+# caber na cota de minutos de repositório privado; o Claude só roda
 # quando existe trabalho. Workflows agendados só rodam a partir da branch padrão (main).
 name: AI-READY (Linear)
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:

@@ -59,7 +59,7 @@ Todo trabalho começa numa issue do Linear (time `COD`, projeto `Personal Financ
 
 ### Execução automática (label `AI-READY`)
 
-Uma issue do time `COD` com a label `AI-READY` é executada sem intervenção pelo workflow `.github/workflows/ai-ready.yml`, que consulta o Linear a cada 15 minutos com `scripts/linear.sh` (sem IA). As skills usadas ficam em `.claude/skills/`.
+Uma issue do time `COD` com a label `AI-READY` é executada sem intervenção pelo workflow `.github/workflows/ai-ready.yml`, que consulta o Linear a cada hora com `scripts/linear.sh` (sem IA); para começar na hora, use "Run workflow" na aba Actions. As skills usadas ficam em `.claude/skills/`.
 
 | Label | Significado |
 |---|---|
