@@ -50,7 +50,7 @@ Proof: `for p in "docs/decisions.md" "docs/CONTEXT.md" "docs/product-spec.md" "m
 ### S3 - Testes isolados do banco real · 2 arquivos · ~3 KB · ~1k
 
 **C7** - No contexto de teste, o `DataSource` usa uma URL `jdbc:h2:mem:`
-Proof: `mvn -B test -Dtest=TestDatabaseIsolationTest` → `TestDatabaseIsolationTest.usesInMemoryDatabase`
+Proof: `JAVA_HOME="/c/Program Files/Java/jdk-21.0.11" mvn -B test -Dtest=TestDatabaseIsolationTest` → `TestDatabaseIsolationTest.usesInMemoryDatabase`
 
 **C8** - `mvn test` não modifica `data/finance.mv.db` (hash SHA-256 e data de modificação iguais antes e depois)
 Proof: `before=$(sha256sum data/finance.mv.db; stat -c %Y data/finance.mv.db); JAVA_HOME="/c/Program Files/Java/jdk-21.0.11" mvn -B -q test; after=$(sha256sum data/finance.mv.db; stat -c %Y data/finance.mv.db); [ "$before" = "$after" ]`
