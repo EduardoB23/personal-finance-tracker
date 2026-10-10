@@ -1,0 +1,25 @@
+# Banco H2 local: contém dados financeiros da família, nunca versionar
+data/
+*.mv.db
+*.trace.db
+
+# Build do backend
+target/
+
+# Frontend (regras específicas também em frontend/.gitignore)
+frontend/node_modules/
+frontend/dist/
+
+# Rascunhos locais
+exemplo.java
+
+# IDE e sistema
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Variáveis de ambiente locais (PIN familiar, caminhos de backup)
+.env
+*.local
