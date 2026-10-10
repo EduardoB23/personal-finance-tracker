@@ -66,7 +66,7 @@ Decisões tomadas na sessão de alinhamento de 10/10/2026 (entrevista "grilling"
 
 ## Ordem das entregas
 
-1. **Base**: Java 21, correção de encoding no frontend, atualização de `docs/` e do `copilot-instructions.md`, criação do `CLAUDE.md`
+1. **Base**: Java 21, atualização de `docs/` e do `copilot-instructions.md`, criação do `CLAUDE.md`
 2. **Fundação de dados**: Flyway com banco limpo, `Category`, orçamento da família, exclusão com estorno
 3. **Acesso pela casa**: PIN, console do H2 desligado, frontend servido pelo `.jar`, inicialização com o Windows
 4. **Lançamento rápido**: Tailwind, "quem sou eu" (Zustand), cadastro mínimo de perfis, contas e cartões, formulário rápido, extrato do mês
