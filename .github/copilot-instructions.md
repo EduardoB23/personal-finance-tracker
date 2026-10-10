@@ -65,7 +65,10 @@ Uma issue do time `COD` com a label `AI-READY` é executada sem intervenção pe
 |---|---|
 | `AI-READY` | gatilho: a issue está pronta para ser executada |
 | `AI-WORKING` | a automação pegou a issue; não recoloque `AI-READY` |
-| `NEEDS-INPUT` | a automação parou com perguntas nos comentários; responda e recoloque `AI-READY` |
+| `AI-NEEDS-INPUT` | a automação parou com perguntas nos comentários; responda e recoloque `AI-READY` |
+| `AI-DONE` | concluída pelo Claude com as skills, pela automação ou numa sessão interativa |
+
+As quatro labels formam o grupo `AI` no Linear, de seleção única: uma issue tem no máximo um status de IA. Issue concluída com `AI-DONE` foi feita pela IA; issue concluída sem label `AI-*` foi feita pelo usuário. Numa sessão interativa que implementa uma issue, aplique `AI-DONE` ao concluir.
 
 A automação nunca faz merge. Ela para sem escrever código quando falta uma decisão que impeça critérios concretos ou quando a task tem `Unresolved` do tipo `blocks`. Pontos `open` seguem com o padrão recomendado e são listados no PR.
 
@@ -73,7 +76,7 @@ A automação nunca faz merge. Ela para sem escrever código quando falta uma de
 
 Um comentário curto por marco, nunca a cada commit: task planejada (link do `.tasks/`, número de critérios, pontos abertos), implementação verificada (veredito e checks provados) e PR aberto. Não copie o conteúdo da task para a issue; aponte para o arquivo.
 
-O que estiver em `Unresolved` numa task não é decidido durante a implementação: pergunte ao usuário (ou, na automação, pare com `NEEDS-INPUT`).
+O que estiver em `Unresolved` numa task não é decidido durante a implementação: pergunte ao usuário (ou, na automação, pare com `AI-NEEDS-INPUT`).
 
 ---
 

@@ -146,7 +146,7 @@ jobs:
           { echo "**A automação parou e precisa de respostas:**"; echo; cat "$NEEDS_INPUT_FILE"; echo;
             echo "Responda aqui nos comentários e recoloque a label AI-READY."; } |
             scripts/linear.sh comment "$ISSUE_ID"
-          scripts/linear.sh swap-label "$ISSUE_ID" AI-WORKING NEEDS-INPUT
+          scripts/linear.sh swap-label "$ISSUE_ID" AI-WORKING AI-NEEDS-INPUT
 
       - name: Abrir PR
         if: steps.result.outputs.needs_input == 'false'
@@ -164,11 +164,11 @@ jobs:
               --title "$IDENTIFIER: $TITLE" --body-file "$PR_BODY_FILE")
           fi
           echo "**PR aberto:** $url" | scripts/linear.sh comment "$ISSUE_ID"
-          scripts/linear.sh remove-label "$ISSUE_ID" AI-WORKING
+          scripts/linear.sh swap-label "$ISSUE_ID" AI-WORKING AI-DONE
 
       - name: Registrar falha
         if: failure()
         run: |
           echo "**A automação falhou.** Veja o log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" |
             scripts/linear.sh comment "$ISSUE_ID"
-          scripts/linear.sh swap-label "$ISSUE_ID" AI-WORKING NEEDS-INPUT
+          scripts/linear.sh swap-label "$ISSUE_ID" AI-WORKING AI-NEEDS-INPUT
