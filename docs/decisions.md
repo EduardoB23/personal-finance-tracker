@@ -63,6 +63,7 @@ Decisões tomadas na sessão de alinhamento de 10/10/2026 (entrevista "grilling"
 |---|---|---|
 | D26 | Fluxo **tlc** (`tlc-discover` → `tlc-plan` → `tlc-implement`), com tasks em `.tasks/` e checks em `.checks/`. | Fluxo `.agent/` (spec/plan/tasks/checklist) + Linear |
 | D27 | Trabalho em branches, com merge na `main` depois. Commits seguem Conventional Commits, em PT-BR. | Commits direto na `main` |
+| D30 | **O fluxo começa no Linear** (time COD, projeto Personal Finance Tracker): toda entrega ou ajuste nasce como issue, a branch usa o nome sugerido pela issue (`gitBranchName`) e a issue é atualizada a cada marco (planejada, implementada e verificada, PR aberto). Revisa a D26, que tinha retirado o Linear. | Repositório como única fonte de acompanhamento (sem histórico fora do código) |
 
 ## Ordem das entregas
 

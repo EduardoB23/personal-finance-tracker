@@ -47,13 +47,18 @@ O projeto é um **Monolito Modular** *offline-first* para uso familiar: um servi
 
 ---
 
-## 4. Processo de Trabalho (fluxo tlc)
+## 4. Processo de Trabalho (Linear + fluxo tlc)
 
-Para uma funcionalidade nova, refatoração ou correção complexa, não gere código direto. Siga o fluxo:
+Todo trabalho começa numa issue do Linear (time `COD`, projeto `Personal Finance Tracker`). Para uma funcionalidade nova, refatoração ou correção complexa, não gere código direto. Siga o fluxo:
 
-1. **`tlc-discover`** - quando a ideia ainda não tem forma: entrevista até chegar a um veredito e decisões literais.
-2. **`tlc-plan`** - transforma o trabalho decidido numa task em `.tasks/<nome>.md`, com critérios observáveis e valores concretos.
-3. **`tlc-implement`** - extrai o checklist em `.checks/<nome>.md`, com uma prova (teste ou comando) por check, implementa e passa por um verificador independente.
+1. **Issue** - leia a issue pedindo só os campos necessários (`title`, `description`, `status`, `gitBranchName`). Sem issue, crie uma antes de começar.
+2. **Branch** - crie a branch com o `gitBranchName` da issue, a partir da `main` (ou da branch da entrega anterior, se ainda não houve merge).
+3. **`tlc-discover`** - quando a ideia ainda não tem forma: entrevista até chegar a um veredito e decisões literais.
+4. **`tlc-plan`** - transforma o trabalho decidido numa task em `.tasks/<nome>.md`, com critérios observáveis e valores concretos.
+5. **`tlc-implement`** - extrai o checklist em `.checks/<nome>.md`, com uma prova (teste ou comando) por check, implementa e passa por um verificador independente.
+6. **PR** - abra o PR com o identificador da issue (ex.: `COD-11`) no título, para o Linear vincular branch e PR à issue.
+
+**Atualização da issue:** um comentário curto por marco, nunca a cada commit. Os marcos são: task planejada (link do `.tasks/`, número de critérios, pontos abertos), implementação verificada (veredito e checks provados) e PR aberto. Mova o status junto: `In Progress` ao planejar, `In Review` com o PR aberto, `Done` após o merge. Não copie o conteúdo da task para a issue; aponte para o arquivo.
 
 O que estiver em `Unresolved` numa task não é decidido durante a implementação: pergunte ao usuário.
 
