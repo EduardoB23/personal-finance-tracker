@@ -20,5 +20,6 @@ App de controle financeiro familiar: backend Spring Boot (Java 21) com H2 em arq
 - Código em inglês; comentários, documentação e commits em PT-BR, seguindo Conventional Commits.
 - Trabalhe numa branch própria; o merge na `main` acontece depois.
 - Nunca versione `data/`: é o banco H2 com dados financeiros reais. Os testes usam H2 em memória e não podem tocar nesse arquivo.
-- Processo: issue no Linear (time `COD`) → branch com o `gitBranchName` da issue → `tlc-discover` → `tlc-plan` (`.tasks/`) → `tlc-implement` (`.checks/`) → PR com `COD-<n>` no título. Nada em `Unresolved` é decidido durante a implementação.
+- Processo: issue no Linear (time `COD`, modelo em `docs/issue-template.md`) → branch com o `gitBranchName` da issue → `tlc-plan` (`.tasks/`) → `tlc-implement` (`.checks/`) → PR com `COD-<n>` no título. Nada em `Unresolved` é decidido durante a implementação.
+- Label `AI-READY` numa issue dispara a execução automática (`.github/workflows/ai-ready.yml`); `NEEDS-INPUT` indica que ela parou com perguntas.
 - Linear: um comentário curto por marco (task planejada, implementação verificada, PR aberto) e o status junto (`In Progress` → `In Review` → `Done`). Aponte para os arquivos `.tasks/` e `.checks/` em vez de copiar o conteúdo. Detalhes na seção 4 de `.github/copilot-instructions.md`.

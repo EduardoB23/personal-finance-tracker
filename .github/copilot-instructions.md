@@ -49,18 +49,31 @@ O projeto é um **Monolito Modular** *offline-first* para uso familiar: um servi
 
 ## 4. Processo de Trabalho (Linear + fluxo tlc)
 
-Todo trabalho começa numa issue do Linear (time `COD`, projeto `Personal Finance Tracker`). Para uma funcionalidade nova, refatoração ou correção complexa, não gere código direto. Siga o fluxo:
+Todo trabalho começa numa issue do Linear (time `COD`, projeto `Personal Finance Tracker`), escrita seguindo [`docs/issue-template.md`](../docs/issue-template.md). Entrevistas de descoberta (`grilling`, `tlc-discover`) foram usadas só no início do projeto e não fazem parte do fluxo de rotina. Não gere código direto; siga o fluxo:
 
-1. **Issue** - leia a issue pedindo só os campos necessários (`title`, `description`, `status`, `gitBranchName`). Sem issue, crie uma antes de começar.
-2. **Branch** - crie a branch com o `gitBranchName` da issue, a partir da `main` (ou da branch da entrega anterior, se ainda não houve merge).
-3. **`tlc-discover`** - quando a ideia ainda não tem forma: entrevista até chegar a um veredito e decisões literais.
-4. **`tlc-plan`** - transforma o trabalho decidido numa task em `.tasks/<nome>.md`, com critérios observáveis e valores concretos.
-5. **`tlc-implement`** - extrai o checklist em `.checks/<nome>.md`, com uma prova (teste ou comando) por check, implementa e passa por um verificador independente.
-6. **PR** - abra o PR com o identificador da issue (ex.: `COD-11`) no título, para o Linear vincular branch e PR à issue.
+1. **Issue** - leia a issue pedindo só os campos necessários (`title`, `description`, `status`, `gitBranchName`).
+2. **Branch** - crie a branch com o `gitBranchName` da issue, a partir da `main`.
+3. **`tlc-plan`** - transforma a issue numa task em `.tasks/<nome>.md`, com critérios observáveis e valores concretos.
+4. **`tlc-implement`** - extrai o checklist em `.checks/<nome>.md`, com uma prova (teste ou comando) por check, implementa e passa por um verificador independente.
+5. **PR** - abra o PR com o identificador da issue (ex.: `COD-11`) no título. A integração Linear ↔ GitHub vincula o PR e move o status da issue sozinha.
 
-**Atualização da issue:** um comentário curto por marco, nunca a cada commit. Os marcos são: task planejada (link do `.tasks/`, número de critérios, pontos abertos), implementação verificada (veredito e checks provados) e PR aberto. Mova o status junto: `In Progress` ao planejar, `In Review` com o PR aberto, `Done` após o merge. Não copie o conteúdo da task para a issue; aponte para o arquivo.
+### Execução automática (label `AI-READY`)
 
-O que estiver em `Unresolved` numa task não é decidido durante a implementação: pergunte ao usuário.
+Uma issue do time `COD` com a label `AI-READY` é executada sem intervenção pelo workflow `.github/workflows/ai-ready.yml`, que consulta o Linear a cada 15 minutos com `scripts/linear.sh` (sem IA). As skills usadas ficam em `.claude/skills/`.
+
+| Label | Significado |
+|---|---|
+| `AI-READY` | gatilho: a issue está pronta para ser executada |
+| `AI-WORKING` | a automação pegou a issue; não recoloque `AI-READY` |
+| `NEEDS-INPUT` | a automação parou com perguntas nos comentários; responda e recoloque `AI-READY` |
+
+A automação nunca faz merge. Ela para sem escrever código quando falta uma decisão que impeça critérios concretos ou quando a task tem `Unresolved` do tipo `blocks`. Pontos `open` seguem com o padrão recomendado e são listados no PR.
+
+### Atualização da issue
+
+Um comentário curto por marco, nunca a cada commit: task planejada (link do `.tasks/`, número de critérios, pontos abertos), implementação verificada (veredito e checks provados) e PR aberto. Não copie o conteúdo da task para a issue; aponte para o arquivo.
+
+O que estiver em `Unresolved` numa task não é decidido durante a implementação: pergunte ao usuário (ou, na automação, pare com `NEEDS-INPUT`).
 
 ---
 
