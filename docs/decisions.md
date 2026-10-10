@@ -66,6 +66,7 @@ Decisões tomadas na sessão de alinhamento de 10/10/2026 (entrevista "grilling"
 | D26 | Fluxo **tlc** (`tlc-discover` → `tlc-plan` → `tlc-implement`), com tasks em `.tasks/` e checks em `.checks/`. | Fluxo `.agent/` (spec/plan/tasks/checklist) + Linear |
 | D27 | Trabalho em branches, com merge na `main` depois. Commits seguem Conventional Commits, em PT-BR. | Commits direto na `main` |
 | D30 | **O fluxo começa no Linear** (time COD, projeto Personal Finance Tracker): toda entrega ou ajuste nasce como issue, a branch usa o nome sugerido pela issue (`gitBranchName`) e a issue é atualizada a cada marco (planejada, implementada e verificada, PR aberto). Revisa a D26, que tinha retirado o Linear. | Repositório como única fonte de acompanhamento (sem histórico fora do código) |
+| D31 | **Label `AI-READY` dispara a execução automática** no GitHub Actions: um script sem IA consulta o Linear a cada 15 min; havendo issue, o Claude (token da assinatura) roda `tlc-plan` e `tlc-implement` com as skills copiadas em `.claude/skills/` e o workflow abre o PR. A automação para com `NEEDS-INPUT` diante de decisão bloqueante e nunca faz merge. Entrevistas de descoberta ficam só no início do projeto. | Webhook do Linear (exige servidor intermediário ou expor o PC de casa); rotina com IA verificando o Linear (gasta tokens mesmo sem trabalho) |
 
 ## Ordem das entregas
 
