@@ -1,10 +1,9 @@
 package com.finance.tracker.account;
 
-import com.finance.tracker.profile.Profile;
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 
+// Cartão da família: qualquer perfil pode lançar nele (D28)
 @Entity
 @Table(name = "credit_cards")
 public class CreditCard {
@@ -28,76 +27,27 @@ public class CreditCard {
     @Column(nullable = false)
     private Integer dueDay;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "profile_id", nullable = false)
-    @JsonBackReference("profile-cards")
-    private Profile profile;
-
     public CreditCard() {
     }
 
-    public CreditCard(String name, BigDecimal limitAmount, BigDecimal availableLimit, Integer closingDay, Integer dueDay, Profile profile) {
+    public CreditCard(String name, BigDecimal limitAmount, BigDecimal availableLimit, Integer closingDay, Integer dueDay) {
         this.name = name;
         this.limitAmount = limitAmount;
         this.availableLimit = availableLimit;
         this.closingDay = closingDay;
         this.dueDay = dueDay;
-        this.profile = profile;
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public BigDecimal getLimitAmount() {
-        return limitAmount;
-    }
-
-    public void setLimitAmount(BigDecimal limitAmount) {
-        this.limitAmount = limitAmount;
-    }
-
-    public BigDecimal getAvailableLimit() {
-        return availableLimit;
-    }
-
-    public void setAvailableLimit(BigDecimal availableLimit) {
-        this.availableLimit = availableLimit;
-    }
-
-    public Integer getClosingDay() {
-        return closingDay;
-    }
-
-    public void setClosingDay(Integer closingDay) {
-        this.closingDay = closingDay;
-    }
-
-    public Integer getDueDay() {
-        return dueDay;
-    }
-
-    public void setDueDay(Integer dueDay) {
-        this.dueDay = dueDay;
-    }
-
-    public Profile getProfile() {
-        return profile;
-    }
-
-    public void setProfile(Profile profile) {
-        this.profile = profile;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public BigDecimal getLimitAmount() { return limitAmount; }
+    public void setLimitAmount(BigDecimal limitAmount) { this.limitAmount = limitAmount; }
+    public BigDecimal getAvailableLimit() { return availableLimit; }
+    public void setAvailableLimit(BigDecimal availableLimit) { this.availableLimit = availableLimit; }
+    public Integer getClosingDay() { return closingDay; }
+    public void setClosingDay(Integer closingDay) { this.closingDay = closingDay; }
+    public Integer getDueDay() { return dueDay; }
+    public void setDueDay(Integer dueDay) { this.dueDay = dueDay; }
 }

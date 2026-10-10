@@ -1,7 +1,7 @@
 package com.finance.tracker.budget;
 
-import com.finance.tracker.profile.Profile;
-import com.finance.tracker.profile.ProfileRepository;
+import com.finance.tracker.category.Category;
+import com.finance.tracker.category.CategoryRepository;
 import com.finance.tracker.transaction.Transaction;
 import com.finance.tracker.transaction.TransactionRepository;
 import com.finance.tracker.transaction.TransactionType;
@@ -12,20 +12,19 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.YearMonth;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class BudgetService {
 
     private final BudgetRepository budgetRepository;
-    private final ProfileRepository profileRepository;
+    private final CategoryRepository categoryRepository;
     private final TransactionRepository transactionRepository;
 
     public BudgetService(BudgetRepository budgetRepository,
-                         ProfileRepository profileRepository,
+                         CategoryRepository categoryRepository,
                          TransactionRepository transactionRepository) {
         this.budgetRepository = budgetRepository;
-        this.profileRepository = profileRepository;
+        this.categoryRepository = categoryRepository;
         this.transactionRepository = transactionRepository;
     }
 
@@ -33,45 +32,37 @@ public class BudgetService {
         return budgetRepository.findAll();
     }
 
+    // Consumo da família inteira; compra no cartão conta no mês da compra e cada parcela no seu mês (D17)
+    @Transactional(readOnly = true)
     public List<BudgetSummary> getBudgetSummary(YearMonth month) {
-        List<Transaction> transactions = transactionRepository.findAll();
+        List<Transaction> expenses = transactionRepository.findAll().stream()
+                .filter(transaction -> transaction.getType() == TransactionType.EXPENSE)
+                .filter(transaction -> YearMonth.from(transaction.getDate()).equals(month))
+                .toList();
 
-        return budgetRepository.findAll().stream()
-            .filter(budget -> budget.getMonth().equals(month))
-            .map(budget -> {
-                BigDecimal consumedAmount = transactions.stream()
-                    .filter(transaction -> transaction.getType() == TransactionType.EXPENSE)
-                    .filter(transaction -> transaction.getDate() != null
-                        && YearMonth.from(transaction.getDate()).equals(month))
-                    .filter(transaction -> transaction.getCategory().equalsIgnoreCase(budget.getCategory()))
-                    .filter(transaction -> transaction.getProfile().getId().equals(budget.getProfile().getId()))
-                    .map(Transaction::getAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                BigDecimal consumedPercentage = budget.getLimitAmount().signum() == 0
-                    ? BigDecimal.ZERO
-                    : consumedAmount.multiply(BigDecimal.valueOf(100))
-                    .divide(budget.getLimitAmount(), 2, RoundingMode.HALF_UP);
-
-                return new BudgetSummary(
-                    budget.getId(),
-                    budget.getCategory(),
-                    budget.getLimitAmount(),
-                    consumedAmount,
-                    consumedPercentage,
-                    budget.getMonth()
-                );
-            })
-            .collect(Collectors.toList());
+        return budgetRepository.findByMonth(month).stream()
+                .map(budget -> {
+                    BigDecimal consumedAmount = expenses.stream()
+                            .filter(transaction -> budget.getCategoryId().equals(transaction.getCategoryId()))
+                            .map(Transaction::getAmount)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    BigDecimal consumedPercentage = budget.getLimitAmount().signum() == 0
+                            ? BigDecimal.ZERO
+                            : consumedAmount.multiply(BigDecimal.valueOf(100))
+                            .divide(budget.getLimitAmount(), 2, RoundingMode.HALF_UP);
+                    return new BudgetSummary(budget.getId(), budget.getCategoryId(), budget.getCategory().getName(),
+                            budget.getLimitAmount(), consumedAmount, consumedPercentage, budget.getMonth());
+                })
+                .toList();
     }
 
     @Transactional
     public Budget createBudget(BudgetRequest request) {
-        Profile profile = profileRepository.findById(request.profileId())
-                .orElseThrow(() -> new IllegalArgumentException("Perfil não encontrado"));
-
-        Budget budget = new Budget(request.category().trim(), request.limitAmount(), request.month(), profile);
-        profile.getBudgets().add(budget);
-        return budgetRepository.save(budget);
+        Category category = categoryRepository.findById(request.categoryId())
+                .orElseThrow(() -> new IllegalArgumentException("Categoria não encontrada"));
+        if (budgetRepository.existsByCategory_IdAndMonth(category.getId(), request.month())) {
+            throw new IllegalArgumentException("Já existe orçamento para esta categoria neste mês");
+        }
+        return budgetRepository.save(new Budget(category, request.limitAmount(), request.month()));
     }
 }

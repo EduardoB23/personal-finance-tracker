@@ -2,12 +2,14 @@ package com.finance.tracker.transaction;
 
 import com.finance.tracker.account.BankAccount;
 import com.finance.tracker.account.CreditCard;
+import com.finance.tracker.category.Category;
 import com.finance.tracker.profile.Profile;
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+// No JSON, as relações aparecem só como ids (categoryId, profileId, accountId...)
 @Entity
 @Table(name = "transactions")
 public class Transaction {
@@ -23,8 +25,11 @@ public class Transaction {
     @Column(nullable = false)
     private String description;
 
-    @Column(nullable = false)
-    private String category;
+    // Nula apenas em transferências
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
 
     @Column(nullable = false)
     private BigDecimal amount;
@@ -32,36 +37,46 @@ public class Transaction {
     @Column(nullable = false)
     private LocalDate date;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "profile_id", nullable = false)
-    @JsonBackReference("profile-transactions")
     private Profile profile;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id")
-    @JsonBackReference("account-transactions")
     private BankAccount account;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "credit_card_id")
     private CreditCard creditCard;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "target_account_id")
     private BankAccount targetAccount;
 
+    // true apenas na regra de uma recorrência; as ocorrências geradas apontam para ela em recurrenceSourceId
     @Column(nullable = false)
     private boolean recurring = false;
 
     @Column
     private Integer installmentCount;
 
+    // id da parcela 1, repetido em todas as parcelas da mesma compra
+    @Column(name = "installment_group_id")
+    private Long installmentGroupId;
+
+    @Column(name = "recurrence_source_id")
+    private Long recurrenceSourceId;
+
     public Transaction() {
     }
 
-    public Transaction(TransactionType type, String description, String category, BigDecimal amount,
-                      LocalDate date, Profile profile, BankAccount account, BankAccount targetAccount,
-                      boolean recurring, Integer installmentCount) {
+    public Transaction(TransactionType type, String description, Category category, BigDecimal amount,
+                       LocalDate date, Profile profile, BankAccount account, CreditCard creditCard,
+                       BankAccount targetAccount) {
         this.type = type;
         this.description = description;
         this.category = category;
@@ -69,104 +84,32 @@ public class Transaction {
         this.date = date;
         this.profile = profile;
         this.account = account;
-        this.targetAccount = targetAccount;
-        this.recurring = recurring;
-        this.installmentCount = installmentCount;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public TransactionType getType() {
-        return type;
-    }
-
-    public void setType(TransactionType type) {
-        this.type = type;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public void setCategory(String category) {
-        this.category = category;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
-
-    public LocalDate getDate() {
-        return date;
-    }
-
-    public void setDate(LocalDate date) {
-        this.date = date;
-    }
-
-    public Profile getProfile() {
-        return profile;
-    }
-
-    public void setProfile(Profile profile) {
-        this.profile = profile;
-    }
-
-    public BankAccount getAccount() {
-        return account;
-    }
-
-    public void setAccount(BankAccount account) {
-        this.account = account;
-    }
-
-    public CreditCard getCreditCard() {
-        return creditCard;
-    }
-
-    public void setCreditCard(CreditCard creditCard) {
         this.creditCard = creditCard;
-    }
-
-    public BankAccount getTargetAccount() {
-        return targetAccount;
-    }
-
-    public void setTargetAccount(BankAccount targetAccount) {
         this.targetAccount = targetAccount;
     }
 
-    public boolean isRecurring() {
-        return recurring;
-    }
+    public Long getId() { return id; }
+    public TransactionType getType() { return type; }
+    public String getDescription() { return description; }
+    public Category getCategory() { return category; }
+    public BigDecimal getAmount() { return amount; }
+    public LocalDate getDate() { return date; }
+    public Profile getProfile() { return profile; }
+    public BankAccount getAccount() { return account; }
+    public CreditCard getCreditCard() { return creditCard; }
+    public BankAccount getTargetAccount() { return targetAccount; }
+    public boolean isRecurring() { return recurring; }
+    public void setRecurring(boolean recurring) { this.recurring = recurring; }
+    public Integer getInstallmentCount() { return installmentCount; }
+    public void setInstallmentCount(Integer installmentCount) { this.installmentCount = installmentCount; }
+    public Long getInstallmentGroupId() { return installmentGroupId; }
+    public void setInstallmentGroupId(Long installmentGroupId) { this.installmentGroupId = installmentGroupId; }
+    public Long getRecurrenceSourceId() { return recurrenceSourceId; }
+    public void setRecurrenceSourceId(Long recurrenceSourceId) { this.recurrenceSourceId = recurrenceSourceId; }
 
-    public void setRecurring(boolean recurring) {
-        this.recurring = recurring;
-    }
-
-    public Integer getInstallmentCount() {
-        return installmentCount;
-    }
-
-    public void setInstallmentCount(Integer installmentCount) {
-        this.installmentCount = installmentCount;
-    }
+    public Long getCategoryId() { return category == null ? null : category.getId(); }
+    public Long getProfileId() { return profile.getId(); }
+    public Long getAccountId() { return account == null ? null : account.getId(); }
+    public Long getCreditCardId() { return creditCard == null ? null : creditCard.getId(); }
+    public Long getTargetAccountId() { return targetAccount == null ? null : targetAccount.getId(); }
 }
