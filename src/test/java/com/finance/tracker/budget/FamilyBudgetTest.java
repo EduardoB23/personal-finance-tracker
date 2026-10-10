@@ -12,6 +12,8 @@ import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -34,8 +36,8 @@ class FamilyBudgetTest extends IntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].categoryId").value(food.intValue()))
                 .andExpect(jsonPath("$[0].category").value("Alimentação"))
-                .andExpect(jsonPath("$[0].consumedAmount").value(300.00))
-                .andExpect(jsonPath("$[0].consumedPercentage").value(60.00));
+                .andExpect(content().string(containsString("\"consumedAmount\":300.00")))
+                .andExpect(content().string(containsString("\"consumedPercentage\":60.00")));
     }
 
     @Test
@@ -48,7 +50,7 @@ class FamilyBudgetTest extends IntegrationTest {
 
         for (String month : new String[]{"2026-01", "2026-02", "2026-03"}) {
             mockMvc.perform(get("/api/budgets/summary").param("month", month))
-                    .andExpect(jsonPath("$[0].consumedAmount").value(100.00));
+                    .andExpect(content().string(containsString("\"consumedAmount\":100.00")));
         }
     }
 

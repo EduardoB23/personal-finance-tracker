@@ -138,7 +138,9 @@ public class BackupController {
         } catch (Exception ex) {
             throw new IllegalArgumentException("Arquivo de backup inválido ou corrompido", ex);
         }
-        if (export == null || export.categories() == null || export.transactions() == null) {
+        if (export == null || java.util.stream.Stream.of(export.profiles(), export.categories(), export.accounts(),
+                export.cards(), export.invoices(), export.budgets(), export.goals(), export.transactions())
+                .anyMatch(java.util.Objects::isNull)) {
             throw new IllegalArgumentException("Arquivo de backup inválido ou corrompido");
         }
 

@@ -87,13 +87,14 @@ class RecurringTransactionSchedulerTest extends IntegrationTest {
 
     @Test
     void startupProcessesDueOccurrences() {
-        Transaction rule = rent(LocalDate.of(2026, 1, 15));
+        LocalDate ruleDate = LocalDate.now().minusMonths(2);
+        Transaction rule = rent(ruleDate);
 
         applicationContext.publishEvent(new ApplicationReadyEvent(new SpringApplication(), new String[0],
                 applicationContext, Duration.ZERO));
 
         assertTrue(occurrencesOf(rule).stream()
-                .anyMatch(occurrence -> occurrence.getDate().equals(LocalDate.of(2026, 2, 15))));
+                .anyMatch(occurrence -> occurrence.getDate().equals(ruleDate.plusMonths(1))));
     }
 
     private Transaction rent(LocalDate date) {

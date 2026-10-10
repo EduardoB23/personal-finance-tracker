@@ -9,6 +9,7 @@ import java.util.Map;
 
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -28,9 +29,11 @@ class FamilyAccountsTest extends IntegrationTest {
                 .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/accounts"))
+                .andExpect(jsonPath("$[*].name", hasItem("Conjunta")))
                 .andExpect(jsonPath("$[*]", everyItem(not(hasKey("profile")))))
                 .andExpect(jsonPath("$[*]", everyItem(not(hasKey("profileId")))));
         mockMvc.perform(get("/api/credit-cards"))
+                .andExpect(jsonPath("$[*].name", hasItem("Nubank")))
                 .andExpect(jsonPath("$[*]", everyItem(not(hasKey("profile")))))
                 .andExpect(jsonPath("$[*]", everyItem(not(hasKey("profileId")))));
     }
@@ -49,6 +52,8 @@ class FamilyAccountsTest extends IntegrationTest {
                 "date", "2026-01-10", "profileId", maria.getId(), "creditCardId", nubank.getId()), maria);
         postExpense(Map.of("type", "EXPENSE", "description", "Padaria", "categoryId", food, "amount", "20.00",
                 "date", "2026-01-11", "profileId", joao.getId(), "accountId", joint.getId()), joao);
+        postExpense(Map.of("type", "EXPENSE", "description", "Posto", "categoryId", food, "amount", "60.00",
+                "date", "2026-01-12", "profileId", joao.getId(), "creditCardId", nubank.getId()), joao);
     }
 
     private void postExpense(Map<String, Object> body, Profile author) throws Exception {

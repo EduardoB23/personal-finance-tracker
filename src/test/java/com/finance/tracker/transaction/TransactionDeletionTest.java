@@ -92,13 +92,15 @@ class TransactionDeletionTest extends IntegrationTest {
         cardExpense(profile, card, "300.00", LocalDate.of(2026, 1, 10), 3);
         List<Transaction> installments = transactionService.getAllTransactions();
         assertEquals(3, installments.size());
+        List<YearMonth> invoiceMonths = List.of(YearMonth.of(2026, 2), YearMonth.of(2026, 3), YearMonth.of(2026, 4));
+        List<BigDecimal> invoicesBefore = invoiceMonths.stream().map(month -> invoiceAmount(card, month)).toList();
         BigDecimal limitBefore = availableLimitOf(card);
 
         transactionService.deleteTransaction(installments.get(1).getId());
 
         assertTrue(transactionService.getAllTransactions().isEmpty());
-        for (YearMonth month : List.of(YearMonth.of(2026, 2), YearMonth.of(2026, 3), YearMonth.of(2026, 4))) {
-            assertEquals(new BigDecimal("0.00"), invoiceAmount(card, month));
+        for (int index = 0; index < invoiceMonths.size(); index++) {
+            assertEquals(invoicesBefore.get(index).subtract(new BigDecimal("100.00")), invoiceAmount(card, invoiceMonths.get(index)));
         }
         assertEquals(limitBefore.add(new BigDecimal("300.00")), availableLimitOf(card));
     }

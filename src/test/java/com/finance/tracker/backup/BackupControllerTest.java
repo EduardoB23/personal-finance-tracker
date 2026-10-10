@@ -61,6 +61,17 @@ class BackupControllerTest extends IntegrationTest {
     }
 
     @Test
+    void backupMissingASectionIsRejected() throws Exception {
+        String json = exported("json").replaceFirst("\"accounts\"\\s*:\\s*\\[\\s*]\\s*,", "");
+
+        mockMvc.perform(multipart("/api/backup/import")
+                        .file(new MockMultipartFile("file", "finance-backup.json", "application/json",
+                                json.getBytes(StandardCharsets.UTF_8))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Arquivo de backup inválido ou corrompido"));
+    }
+
+    @Test
     void importInvalidFile_shouldRejectBackup() {
         MockMultipartFile file = new MockMultipartFile("file", "invalid.json", "application/json",
                 "{ invalid".getBytes(StandardCharsets.UTF_8));
@@ -106,7 +117,7 @@ class BackupControllerTest extends IntegrationTest {
         transactionService.deleteTransaction(february.getId());
         budgetService.createBudget(new BudgetRequest(expenseCategoryId("Alimentação"), new BigDecimal("500.00"), YearMonth.of(2026, 1)));
         entityManager.flush();
-        long categoriesBefore = categoryRepository.count();
+        List<String> categoriesBefore = categorySnapshot();
         int transactionsBefore = transactionService.getAllTransactions().size();
 
         String backup = exported(format);
@@ -115,9 +126,9 @@ class BackupControllerTest extends IntegrationTest {
         assertEquals(200, imported.getStatusCode().value());
 
         // Categorias voltam com nome, tipo e arquivamento
-        assertEquals(categoriesBefore, categoryRepository.count());
-        assertFalse(category("Pets", CategoryType.EXPENSE).isArchived());
-        assertTrue(category("Antiga", CategoryType.EXPENSE).isArchived());
+        assertEquals(categoriesBefore, categorySnapshot());
+        assertTrue(categoriesBefore.contains("EXPENSE/Pets/false"));
+        assertTrue(categoriesBefore.contains("EXPENSE/Antiga/true"));
 
         // Lançamentos e orçamentos apontam para as categorias restauradas
         Transaction food = transactionService.getAllTransactions().stream()
@@ -136,6 +147,14 @@ class BackupControllerTest extends IntegrationTest {
                 .filter(t -> t.getDescription().contains("Parcela 2/3")).findFirst().orElseThrow();
         transactionService.deleteTransaction(installment.getId());
         assertTrue(transactionService.getAllTransactions().stream().noneMatch(t -> t.getDescription().contains("Parcela")));
+    }
+
+    // Tipo, nome e arquivamento de todas as categorias, ordenados
+    private List<String> categorySnapshot() {
+        return categoryRepository.findAll().stream()
+                .map(c -> c.getType() + "/" + c.getName() + "/" + c.isArchived())
+                .sorted()
+                .toList();
     }
 
     private String exported(String format) throws Exception {
