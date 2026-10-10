@@ -2,6 +2,8 @@
 
 Este documento descreve o escopo funcional, regras de negócio e decisões de arquitetura do **Personal Finance Tracker**, acordadas durante a etapa de concepção inicial (conduzida via processo de entrevista de requisitos).
 
+> Revisado em 10/10/2026: as decisões em [`decisions.md`](decisions.md) prevalecem em caso de divergência.
+
 ---
 
 ## 🎯 1. Visão Geral e Público-Alvo
@@ -16,10 +18,11 @@ Este documento descreve o escopo funcional, regras de negócio e decisões de ar
 ## 👥 2. Multi-Usuário (Abordagem Sem Login)
 
 Para manter a simplicidade arquitetural e custo zero no MVP:
-*   A aplicação não exigirá criação de conta ou autenticação de login.
+*   A aplicação não exigirá criação de conta. O acesso pela rede de casa é protegido por um **PIN familiar único** (D6).
 *   O controle familiar será realizado por meio de **perfis individuais locais**.
 *   Cada transação cadastrada conterá um campo identificador (ex: "Responsável") mapeando qual membro da família realizou aquela receita, despesa ou transferência.
 *   Desta forma, os saldos podem ser consolidados de forma global ou filtrados por integrante na interface.
+*   Cada aparelho escolhe uma vez "quem sou eu", e esse perfil vem preenchido nos lançamentos (D20).
 
 ---
 
@@ -27,13 +30,15 @@ Para manter a simplicidade arquitetural e custo zero no MVP:
 
 ### 3.1. Lançamentos e Categorização
 *   Cadastro de **Receitas** (Entradas) e **Despesas** (Saídas).
-*   Categorização personalizável de despesas (ex: Alimentação, Moradia, Transporte, Lazer).
+*   Categorias personalizáveis cadastradas como entidade, com tipo Receita ou Despesa e lista padrão inicial (ex: Alimentação, Moradia, Transporte, Lazer). Categorias em uso são arquivadas, nunca apagadas (D14, D15).
 *   Atribuição de cada lançamento a um perfil familiar responsável.
 
 ### 3.2. Contas Bancárias e Cartões de Crédito
 *   Cadastro de múltiplas Contas Bancárias (Corrente, Poupança, Carteira, Investimentos) com controle de saldos individuais.
 *   Cadastro de Cartões de Crédito, com controle de limite total, limite disponível, data de vencimento e data de fechamento da fatura.
 *   As compras feitas em cartão devem ser consolidadas na fatura do mês de vencimento correspondente.
+*   No extrato e no orçamento, a compra conta no mês em que foi feita; o saldo da conta só muda quando a fatura é paga (D17).
+*   O pagamento de fatura debita a conta escolhida, devolve o limite e não conta como despesa (D18).
 
 ### 3.3. Transferências
 *   Registro de transações de transferência entre contas (ex: "Retirada de R$ 500,00 da Conta Corrente para aplicação na Conta Investimentos"), alterando o saldo das duas contas simultaneamente sem afetar o resultado do fluxo de despesa/receita global.
@@ -44,7 +49,7 @@ Para manter a simplicidade arquitetural e custo zero no MVP:
 *   **Previsões Futuras (Projeções):** Capacidade de lançar receitas/despesas futuras planejadas para simular o saldo estimado dos próximos meses, auxiliando no planejamento de viagens ou investimentos.
 
 ### 3.5. Orçamento Mensal (Budgeting)
-*   Definição de metas/limites de gastos mensais por categoria (ex: limite de R$ 800,00 para Alimentação).
+*   Definição de limites de gastos mensais por categoria para a família toda (ex: limite de R$ 800,00 para Alimentação) (D16).
 *   Painel visual mostrando a porcentagem consumida do orçamento planejado em tempo real.
 
 ### 3.6. Metas Financeiras (Goals)
@@ -56,10 +61,10 @@ Para manter a simplicidade arquitetural e custo zero no MVP:
 ## 💾 4. Arquitetura de Dados e Sincronização
 
 *   **Banco de Dados Local (Monolito Modular):** Persistência local em arquivo utilizando **H2 Database** gerenciado pelo backend em **Java 21 / Spring Boot** (`jdbc:h2:file:./data/finance`), garantindo total privacidade e execução offline.
-*   **Sincronização entre Dispositivos (Família):** 
-    *   Como não há servidor de banco de dados centralizado no MVP, a sincronização entre celulares diferentes será feita via **Backup Manual**.
-    *   O aplicativo terá uma área de configurações onde o usuário poderá clicar em **"Exportar Dados"** para baixar um arquivo em formato **CSV** ou **JSON**.
-    *   No outro dispositivo, o usuário acessará **"Importar Dados"** e carregará esse arquivo, sincronizando os dados manualmente.
+*   **Acesso da Família:** o servidor roda no PC de casa e sobe com o Windows; os celulares acessam o app pelo navegador via Wi‑Fi local, sem necessidade de sincronizar dados entre aparelhos (D2, D4).
+*   **Backup:**
+    *   Backup automático diário em JSON numa pasta configurável (padrão: OneDrive), guardando os últimos 30 arquivos (D24).
+    *   A área de configurações mantém **"Exportar Dados"** e **"Importar Dados"** (CSV ou JSON) para restauração manual. A importação substitui todo o estado local.
 
 ---
 
