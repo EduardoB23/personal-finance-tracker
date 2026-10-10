@@ -53,13 +53,14 @@ case "${1:-}" in
     ;;
 
   # Troca uma label por outra, mantendo as demais: swap-label <issueId> <de> <para>
+  # Remove também qualquer outra label AI-*, porque o grupo AI do Linear aceita só uma por issue
   swap-label)
     issue_id="$2"; from="$3"; to="$4"
     current=$(gql 'query($id: String!) { issue(id: $id) { labels { nodes { id name } } } }' \
       "$(jq -n --arg id "$issue_id" '{id: $id}')")
     to_id=$(label_id "$to")
     ids=$(jq -c --arg from "$from" --arg to "$to_id" \
-      '[.data.issue.labels.nodes[] | select(.name != $from) | .id] + [$to] | unique' <<<"$current")
+      '[.data.issue.labels.nodes[] | select(.name != $from and (.name | startswith("AI-") | not)) | .id] + [$to] | unique' <<<"$current")
     gql 'mutation($id: String!, $labels: [String!]) { issueUpdate(id: $id, input: { labelIds: $labels }) { success } }' \
       "$(jq -n --arg id "$issue_id" --argjson labels "$ids" '{id: $id, labels: $labels}')" >/dev/null
     ;;
