@@ -15,8 +15,7 @@ import com.finance.tracker.profile.ProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import com.finance.tracker.IntegrationTest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,9 +25,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@SpringBootTest
-@Transactional
-class TransactionServiceTest {
+class TransactionServiceTest extends IntegrationTest {
 
     @Autowired
     private ProfileRepository profileRepository;
@@ -52,8 +49,8 @@ class TransactionServiceTest {
     @BeforeEach
     void setUp() {
         profile = profileRepository.save(new Profile("Família Teste"));
-        checkingAccount = bankAccountRepository.save(new BankAccount("Conta Corrente", AccountType.CHECKING, new BigDecimal("1000.00"), profile));
-        savingsAccount = bankAccountRepository.save(new BankAccount("Poupança", AccountType.SAVINGS, new BigDecimal("500.00"), profile));
+        checkingAccount = bankAccountRepository.save(new BankAccount("Conta Corrente", AccountType.CHECKING, new BigDecimal("1000.00")));
+        savingsAccount = bankAccountRepository.save(new BankAccount("Poupança", AccountType.SAVINGS, new BigDecimal("500.00")));
     }
 
     @Test
@@ -61,7 +58,7 @@ class TransactionServiceTest {
         TransactionRequest request = new TransactionRequest(
                 TransactionType.EXPENSE,
                 "Supermercado",
-                "Alimentação",
+                expenseCategoryId("Alimentação"),
                 new BigDecimal("200.00"),
                 LocalDate.now(),
                 profile.getId(),
@@ -82,7 +79,7 @@ class TransactionServiceTest {
         TransactionRequest request = new TransactionRequest(
                 TransactionType.TRANSFER,
                 "Transferência para poupança",
-                "Transferência",
+                null,
                 new BigDecimal("150.00"),
                 LocalDate.now(),
                 profile.getId(),
@@ -103,7 +100,7 @@ class TransactionServiceTest {
         TransactionRequest request = new TransactionRequest(
                 TransactionType.EXPENSE,
                 "Compra parcelada",
-                "Eletrônicos",
+                expenseCategoryId("Outros"),
                 new BigDecimal("600.00"),
                 LocalDate.now(),
                 profile.getId(),
@@ -120,12 +117,12 @@ class TransactionServiceTest {
     }
 
     @Test
-    void generateRecurringTransactions_shouldCreateMonthlyOccurrencesWithoutChangingCurrentBalance() {
+    void generateRecurringTransactions_shouldCreateMonthlyOccurrencesAndApplyTheirEffect() {
         LocalDate startDate = LocalDate.of(2026, 1, 15);
         Transaction recurringTransaction = transactionService.createTransaction(new TransactionRequest(
                 TransactionType.EXPENSE,
                 "Aluguel",
-                "Moradia",
+                expenseCategoryId("Moradia"),
                 new BigDecimal("900.00"),
                 startDate,
                 profile.getId(),
@@ -143,7 +140,8 @@ class TransactionServiceTest {
         assertEquals(2, generated.size());
         assertEquals(LocalDate.of(2026, 2, 15), generated.get(0).getDate());
         assertEquals(LocalDate.of(2026, 3, 15), generated.get(1).getDate());
-        assertEquals(new BigDecimal("100.00"), bankAccountRepository.findById(checkingAccount.getId()).orElseThrow().getBalance());
+        // Cada ocorrência vencida aplica o seu débito (D29): 1000 - 900 x 3
+        assertEquals(new BigDecimal("-1700.00"), bankAccountRepository.findById(checkingAccount.getId()).orElseThrow().getBalance());
         assertEquals(0, transactionService.generateRecurringTransactions(
             recurringTransaction.getId(),
             LocalDate.of(2026, 3, 15)
@@ -154,16 +152,15 @@ class TransactionServiceTest {
     void getBudgetSummary_shouldCalculateOnlyMatchingMonthlyExpenses() {
         YearMonth month = YearMonth.of(2026, 1);
         Budget budget = budgetService.createBudget(new BudgetRequest(
-                "Alimentação",
+                expenseCategoryId("Alimentação"),
                 new BigDecimal("500.00"),
-                month,
-                profile.getId()
+                month
         ));
 
         transactionService.createTransaction(new TransactionRequest(
                 TransactionType.EXPENSE,
                 "Mercado",
-                "Alimentação",
+                expenseCategoryId("Alimentação"),
                 new BigDecimal("200.00"),
                 LocalDate.of(2026, 1, 10),
                 profile.getId(),

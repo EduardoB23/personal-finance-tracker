@@ -5,14 +5,16 @@ import com.finance.tracker.account.BankAccountRepository;
 import com.finance.tracker.account.CreditCard;
 import com.finance.tracker.account.CreditCardInvoiceService;
 import com.finance.tracker.account.CreditCardRepository;
+import com.finance.tracker.category.Category;
+import com.finance.tracker.category.CategoryService;
 import com.finance.tracker.profile.Profile;
 import com.finance.tracker.profile.ProfileRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,21 +22,27 @@ import java.util.List;
 public class TransactionService {
 
     private final TransactionRepository transactionRepository;
+    private final RecurrenceExceptionRepository recurrenceExceptionRepository;
     private final ProfileRepository profileRepository;
     private final BankAccountRepository bankAccountRepository;
     private final CreditCardRepository creditCardRepository;
     private final CreditCardInvoiceService creditCardInvoiceService;
+    private final CategoryService categoryService;
 
     public TransactionService(TransactionRepository transactionRepository,
-                             ProfileRepository profileRepository,
-                             BankAccountRepository bankAccountRepository,
-                             CreditCardRepository creditCardRepository,
-                             CreditCardInvoiceService creditCardInvoiceService) {
+                              RecurrenceExceptionRepository recurrenceExceptionRepository,
+                              ProfileRepository profileRepository,
+                              BankAccountRepository bankAccountRepository,
+                              CreditCardRepository creditCardRepository,
+                              CreditCardInvoiceService creditCardInvoiceService,
+                              CategoryService categoryService) {
         this.transactionRepository = transactionRepository;
+        this.recurrenceExceptionRepository = recurrenceExceptionRepository;
         this.profileRepository = profileRepository;
         this.bankAccountRepository = bankAccountRepository;
         this.creditCardRepository = creditCardRepository;
         this.creditCardInvoiceService = creditCardInvoiceService;
+        this.categoryService = categoryService;
     }
 
     public List<Transaction> getAllTransactions() {
@@ -42,216 +50,178 @@ public class TransactionService {
     }
 
     @Transactional
-    public void processRecurringTransactions(LocalDate untilDate) {
-        transactionRepository.findAll().stream()
-                .filter(Transaction::isRecurring)
-                .forEach(transaction -> generateRecurringTransactions(transaction.getId(), untilDate));
-    }
-
-    @Transactional
-    public List<Transaction> generateRecurringTransactions(Long transactionId, LocalDate untilDate) {
-        Transaction sourceTransaction = transactionRepository.findById(transactionId)
-                .orElseThrow(() -> new IllegalArgumentException("Transação não encontrada"));
-
-        if (!sourceTransaction.isRecurring()) {
-            throw new IllegalArgumentException("Transação não está configurada como recorrente");
-        }
-        if (sourceTransaction.getType() == TransactionType.TRANSFER) {
-            throw new IllegalArgumentException("Transferências não podem ser recorrentes");
-        }
-        if (untilDate == null || !untilDate.isAfter(sourceTransaction.getDate())) {
-            return List.of();
-        }
-
-        List<Transaction> existingTransactions = transactionRepository.findAll();
-        List<Transaction> generatedTransactions = new ArrayList<>();
-        LocalDate occurrenceDate = nextMonthlyDate(sourceTransaction.getDate());
-
-        while (!occurrenceDate.isAfter(untilDate)) {
-            LocalDate currentOccurrenceDate = occurrenceDate;
-            boolean alreadyGenerated = existingTransactions.stream().anyMatch(transaction ->
-                    transaction.getProfile().getId().equals(sourceTransaction.getProfile().getId())
-                            && transaction.getAccount().getId().equals(sourceTransaction.getAccount().getId())
-                            && transaction.getType() == sourceTransaction.getType()
-                            && transaction.getCategory().equals(sourceTransaction.getCategory())
-                            && transaction.getAmount().compareTo(sourceTransaction.getAmount()) == 0
-                            && transaction.getDate().equals(currentOccurrenceDate)
-                            && transaction.getDescription().equals(recurringDescription(sourceTransaction))
-            );
-
-            if (!alreadyGenerated) {
-                Transaction generatedTransaction = new Transaction(
-                        sourceTransaction.getType(),
-                        recurringDescription(sourceTransaction),
-                        sourceTransaction.getCategory(),
-                        sourceTransaction.getAmount(),
-                        currentOccurrenceDate,
-                        sourceTransaction.getProfile(),
-                        sourceTransaction.getAccount(),
-                        null,
-                        false,
-                        null
-                );
-                generatedTransactions.add(transactionRepository.save(generatedTransaction));
-            }
-
-            occurrenceDate = nextMonthlyDate(occurrenceDate);
-        }
-
-        return generatedTransactions;
-    }
-
-    private String recurringDescription(Transaction sourceTransaction) {
-        return sourceTransaction.getDescription() + " - Recorrência";
-    }
-
-    private LocalDate nextMonthlyDate(LocalDate date) {
-        YearMonth nextMonth = YearMonth.from(date).plusMonths(1);
-        return nextMonth.atDay(Math.min(date.getDayOfMonth(), nextMonth.lengthOfMonth()));
-    }
-
-    @Transactional
     public Transaction createTransaction(TransactionRequest request) {
         int installmentCount = request.installmentCount() != null ? request.installmentCount() : 1;
-
         if (installmentCount <= 0) {
             throw new IllegalArgumentException("Número de parcelas deve ser maior que zero");
+        }
+        if (request.recurring() && installmentCount > 1) {
+            throw new IllegalArgumentException("Lançamento recorrente não pode ser parcelado");
+        }
+        if (request.recurring() && request.type() == TransactionType.TRANSFER) {
+            throw new IllegalArgumentException("Transferências não podem ser recorrentes");
         }
 
         Profile profile = profileRepository.findById(request.profileId())
                 .orElseThrow(() -> new IllegalArgumentException("Perfil não encontrado"));
-
-        BankAccount sourceAccount = request.accountId() == null ? null : bankAccountRepository.findById(request.accountId())
-                .orElseThrow(() -> new IllegalArgumentException("Conta de origem não encontrada"));
+        Category category = resolveCategory(request.type(), request.categoryId());
 
         CreditCard creditCard = null;
+        BankAccount account = null;
         if (request.creditCardId() != null) {
             if (request.type() != TransactionType.EXPENSE) {
                 throw new IllegalArgumentException("Cartão de crédito aceita apenas despesas");
             }
             creditCard = creditCardRepository.findById(request.creditCardId())
                     .orElseThrow(() -> new IllegalArgumentException("Cartão de crédito não encontrado"));
-            if (!creditCard.getProfile().getId().equals(profile.getId())) {
-                throw new IllegalArgumentException("Cartão não pertence ao perfil informado");
-            }
-        } else if (sourceAccount == null) {
+        } else if (request.accountId() == null) {
             throw new IllegalArgumentException("Conta de origem é obrigatória");
-        }
-
-        if (sourceAccount != null && !sourceAccount.getProfile().getId().equals(profile.getId())) {
-            throw new IllegalArgumentException("Conta não pertence ao perfil informado");
+        } else {
+            account = bankAccountRepository.findById(request.accountId())
+                    .orElseThrow(() -> new IllegalArgumentException("Conta de origem não encontrada"));
         }
 
         BankAccount targetAccount = null;
-        if (request.targetAccountId() != null) {
-            targetAccount = bankAccountRepository.findById(request.targetAccountId())
-                    .orElseThrow(() -> new IllegalArgumentException("Conta de destino não encontrada"));
-            if (!targetAccount.getProfile().getId().equals(profile.getId())) {
-                throw new IllegalArgumentException("Conta de destino não pertence ao perfil informado");
-            }
-        }
-
-        BigDecimal amount = request.amount();
-        List<Transaction> createdTransactions = new java.util.ArrayList<>();
-
-        if (installmentCount > 1) {
-            BigDecimal installmentAmount = amount.divide(BigDecimal.valueOf(installmentCount), 2, java.math.RoundingMode.DOWN);
-
-            for (int i = 1; i <= installmentCount; i++) {
-                BigDecimal currentAmount = i == installmentCount
-                        ? amount.subtract(installmentAmount.multiply(BigDecimal.valueOf(installmentCount - 1L)))
-                        : installmentAmount;
-                Transaction installment = creditCard == null ? new Transaction(
-                        request.type(),
-                        request.description().trim() + " - Parcela " + i + "/" + installmentCount,
-                        request.category().trim(),
-                        currentAmount,
-                        request.date().plusMonths(i - 1L),
-                        profile,
-                        sourceAccount,
-                        targetAccount,
-                        request.recurring(),
-                        installmentCount
-                ) : new Transaction(request.type(), request.description().trim() + " - Parcela " + i + "/" + installmentCount,
-                    request.category().trim(), currentAmount, request.date().plusMonths(i - 1L), profile,
-                    null, null, request.recurring(), installmentCount);
-                if (creditCard != null) {
-                    installment.setCreditCard(creditCard);
-                }
-
-                if (request.type() == TransactionType.EXPENSE) {
-                    if (creditCard == null) {
-                        sourceAccount.setBalance(sourceAccount.getBalance().subtract(currentAmount));
-                    } else {
-                        creditCardInvoiceService.addPurchase(creditCard, currentAmount, request.date().plusMonths(i - 1L));
-                    }
-                } else if (request.type() == TransactionType.INCOME) {
-                    sourceAccount.setBalance(sourceAccount.getBalance().add(currentAmount));
-                } else if (request.type() == TransactionType.TRANSFER) {
-                    if (targetAccount == null) {
-                        throw new IllegalArgumentException("Transferência exige conta de destino");
-                    }
-                    sourceAccount.setBalance(sourceAccount.getBalance().subtract(currentAmount));
-                    targetAccount.setBalance(targetAccount.getBalance().add(currentAmount));
-                }
-
-                profile.getTransactions().add(installment);
-                createdTransactions.add(transactionRepository.save(installment));
-            }
-
-            if (request.type() == TransactionType.TRANSFER) {
-                bankAccountRepository.save(sourceAccount);
-                bankAccountRepository.save(targetAccount);
-            } else if (creditCard == null) {
-                bankAccountRepository.save(sourceAccount);
-            }
-
-            return createdTransactions.get(0);
-        }
-
         if (request.type() == TransactionType.TRANSFER) {
-            if (targetAccount == null) {
+            if (request.targetAccountId() == null) {
                 throw new IllegalArgumentException("Transferência exige conta de destino");
             }
-            if (sourceAccount.getId().equals(targetAccount.getId())) {
+            targetAccount = bankAccountRepository.findById(request.targetAccountId())
+                    .orElseThrow(() -> new IllegalArgumentException("Conta de destino não encontrada"));
+            if (targetAccount.getId().equals(account.getId())) {
                 throw new IllegalArgumentException("Conta de origem e destino não podem ser iguais");
             }
-
-            sourceAccount.setBalance(sourceAccount.getBalance().subtract(amount));
-            targetAccount.setBalance(targetAccount.getBalance().add(amount));
-            bankAccountRepository.save(sourceAccount);
-            bankAccountRepository.save(targetAccount);
-        } else if (creditCard == null) {
-            if (request.type() == TransactionType.EXPENSE) {
-                sourceAccount.setBalance(sourceAccount.getBalance().subtract(amount));
-            } else if (request.type() == TransactionType.INCOME) {
-                sourceAccount.setBalance(sourceAccount.getBalance().add(amount));
-            }
-            bankAccountRepository.save(sourceAccount);
         }
 
-        Transaction transaction = creditCard == null ? new Transaction(
-                request.type(),
-                request.description().trim(),
-                request.category().trim(),
-                amount,
-                request.date(),
-                profile,
-                sourceAccount,
-                targetAccount,
-                request.recurring(),
-                request.installmentCount()
-            ) : new Transaction(request.type(), request.description().trim(), request.category().trim(), amount,
-                request.date(), profile, null, null, request.recurring(), request.installmentCount());
-            if (creditCard != null) {
-                transaction.setCreditCard(creditCard);
-            }
+        String description = request.description().trim();
+        if (installmentCount == 1) {
+            Transaction transaction = new Transaction(request.type(), description, category, request.amount(),
+                    request.date(), profile, account, creditCard, targetAccount);
+            transaction.setRecurring(request.recurring());
+            transaction = transactionRepository.save(transaction);
+            applyEffect(transaction, false);
+            return transaction;
+        }
 
-            if (creditCard != null) {
-                creditCardInvoiceService.addPurchase(creditCard, amount, request.date());
+        // A última parcela recebe a diferença de centavos, para a soma bater com o total
+        BigDecimal installmentAmount = request.amount().divide(BigDecimal.valueOf(installmentCount), 2, RoundingMode.DOWN);
+        Transaction firstInstallment = null;
+        for (int number = 1; number <= installmentCount; number++) {
+            BigDecimal amount = number == installmentCount
+                    ? request.amount().subtract(installmentAmount.multiply(BigDecimal.valueOf(installmentCount - 1L)))
+                    : installmentAmount;
+            Transaction installment = new Transaction(request.type(),
+                    description + " - Parcela " + number + "/" + installmentCount, category, amount,
+                    request.date().plusMonths(number - 1L), profile, account, creditCard, targetAccount);
+            installment.setInstallmentCount(installmentCount);
+            installment = transactionRepository.save(installment);
+            if (firstInstallment == null) {
+                firstInstallment = installment;
             }
+            installment.setInstallmentGroupId(firstInstallment.getId());
+            applyEffect(installment, false);
+        }
+        return firstInstallment;
+    }
 
-        profile.getTransactions().add(transaction);
-        return transactionRepository.save(transaction);
+    @Transactional
+    public void deleteTransaction(Long transactionId) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new IllegalArgumentException("Transação não encontrada"));
+
+        if (transaction.getInstallmentGroupId() != null) {
+            List<Transaction> installments = transactionRepository.findByInstallmentGroupId(transaction.getInstallmentGroupId());
+            installments.forEach(installment -> applyEffect(installment, true));
+            transactionRepository.deleteAll(installments);
+            return;
+        }
+
+        applyEffect(transaction, true);
+        if (transaction.getRecurrenceSourceId() != null) {
+            recurrenceExceptionRepository.save(new RecurrenceException(transaction.getRecurrenceSourceId(), transaction.getDate()));
+        }
+        // Excluir a regra mantém as ocorrências já geradas: o banco anula recurrence_source_id delas
+        transactionRepository.delete(transaction);
+    }
+
+    @Transactional
+    public void processRecurringTransactions(LocalDate untilDate) {
+        transactionRepository.findByRecurringTrueAndRecurrenceSourceIdIsNull()
+                .forEach(rule -> generateOccurrences(rule, untilDate));
+    }
+
+    @Transactional
+    public List<Transaction> generateRecurringTransactions(Long transactionId, LocalDate untilDate) {
+        Transaction rule = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new IllegalArgumentException("Transação não encontrada"));
+        if (!rule.isRecurring()) {
+            throw new IllegalArgumentException("Transação não está configurada como recorrente");
+        }
+        return generateOccurrences(rule, untilDate);
+    }
+
+    // Gera as ocorrências mensais vencidas até a data informada, nunca depois de hoje, aplicando o efeito de cada uma
+    private List<Transaction> generateOccurrences(Transaction rule, LocalDate untilDate) {
+        LocalDate today = LocalDate.now();
+        LocalDate limit = untilDate == null || untilDate.isAfter(today) ? today : untilDate;
+        List<Transaction> generated = new ArrayList<>();
+
+        for (int month = 1; ; month++) {
+            LocalDate occurrenceDate = rule.getDate().plusMonths(month);
+            if (occurrenceDate.isAfter(limit)) {
+                break;
+            }
+            if (transactionRepository.existsByRecurrenceSourceIdAndDate(rule.getId(), occurrenceDate)
+                    || recurrenceExceptionRepository.existsBySourceTransactionIdAndOccurrenceDate(rule.getId(), occurrenceDate)) {
+                continue;
+            }
+            Transaction occurrence = new Transaction(rule.getType(), rule.getDescription() + " - Recorrência",
+                    rule.getCategory(), rule.getAmount(), occurrenceDate, rule.getProfile(), rule.getAccount(),
+                    rule.getCreditCard(), null);
+            occurrence.setRecurrenceSourceId(rule.getId());
+            occurrence = transactionRepository.save(occurrence);
+            applyEffect(occurrence, false);
+            generated.add(occurrence);
+        }
+        return generated;
+    }
+
+    private Category resolveCategory(TransactionType type, Long categoryId) {
+        if (type == TransactionType.TRANSFER) {
+            if (categoryId != null) {
+                throw new IllegalArgumentException("Categoria inválida para este lançamento");
+            }
+            return null;
+        }
+        if (categoryId == null) {
+            throw new IllegalArgumentException("Categoria é obrigatória");
+        }
+        return categoryService.requireForTransaction(categoryId, type);
+    }
+
+    // Efeito de um lançamento no saldo das contas ou na fatura do cartão; reverse = estorno
+    private void applyEffect(Transaction transaction, boolean reverse) {
+        BigDecimal amount = reverse ? transaction.getAmount().negate() : transaction.getAmount();
+        switch (transaction.getType()) {
+            case EXPENSE -> {
+                if (transaction.getCreditCard() == null) {
+                    debit(transaction.getAccount(), amount);
+                } else if (reverse) {
+                    creditCardInvoiceService.removePurchase(transaction.getCreditCard(), transaction.getAmount(), transaction.getDate());
+                } else {
+                    creditCardInvoiceService.addPurchase(transaction.getCreditCard(), transaction.getAmount(), transaction.getDate());
+                }
+            }
+            case INCOME -> debit(transaction.getAccount(), amount.negate());
+            case TRANSFER -> {
+                debit(transaction.getAccount(), amount);
+                debit(transaction.getTargetAccount(), amount.negate());
+            }
+        }
+    }
+
+    private void debit(BankAccount account, BigDecimal amount) {
+        account.setBalance(account.getBalance().subtract(amount));
+        bankAccountRepository.save(account);
     }
 }

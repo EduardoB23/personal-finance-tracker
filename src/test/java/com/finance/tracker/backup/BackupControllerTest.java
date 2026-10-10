@@ -1,143 +1,80 @@
 package com.finance.tracker.backup;
 
-import com.finance.tracker.account.AccountType;
+import com.finance.tracker.IntegrationTest;
 import com.finance.tracker.account.BankAccount;
-import com.finance.tracker.account.BankAccountRepository;
+import com.finance.tracker.account.CreditCard;
+import com.finance.tracker.budget.BudgetRepository;
+import com.finance.tracker.budget.BudgetRequest;
+import com.finance.tracker.budget.BudgetService;
+import com.finance.tracker.category.Category;
+import com.finance.tracker.category.CategoryType;
 import com.finance.tracker.profile.Profile;
-import com.finance.tracker.profile.ProfileRepository;
 import com.finance.tracker.transaction.Transaction;
-import com.finance.tracker.transaction.TransactionRepository;
 import com.finance.tracker.transaction.TransactionRequest;
-import com.finance.tracker.transaction.TransactionService;
 import com.finance.tracker.transaction.TransactionType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@Transactional
-class BackupControllerTest {
+class BackupControllerTest extends IntegrationTest {
 
-    @Autowired
-    private BackupController backupController;
-
-    @Autowired
-    private ProfileRepository profileRepository;
-
-    @Autowired
-    private BankAccountRepository bankAccountRepository;
-
-        @Autowired
-        private TransactionRepository transactionRepository;
-
-        @Autowired
-        private TransactionService transactionService;
+    @Autowired private BackupController backupController;
+    @Autowired private BudgetService budgetService;
+    @Autowired private BudgetRepository budgetRepository;
 
     @Test
-    void exportAndImport_shouldPreserveProfilesAndAccounts() throws Exception {
-        Profile profile = profileRepository.save(new Profile("Família Backup"));
-        BankAccount account = bankAccountRepository.save(new BankAccount(
-                "Conta Backup",
-                AccountType.CHECKING,
-                new BigDecimal("1250.00"),
-                profile
-        ));
-        transactionService.createTransaction(new TransactionRequest(
-                TransactionType.EXPENSE, "Despesa Backup", "Casa", new BigDecimal("50.00"),
-                java.time.LocalDate.of(2026, 1, 10), profile.getId(), account.getId(), null, false, null
-        ));
-
-        ResponseEntity<ByteArrayResource> exported = backupController.exportBackup("json");
-
-        assertEquals(200, exported.getStatusCode().value());
-        assertNotNull(exported.getBody());
-        String json = new String(exported.getBody().getByteArray(), StandardCharsets.UTF_8);
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "finance-backup.json",
-                "application/json",
-                json.getBytes(StandardCharsets.UTF_8)
-        );
-
-        ResponseEntity<Map<String, String>> imported = backupController.importBackup(file);
-
-        assertEquals(200, imported.getStatusCode().value());
-        assertEquals("Backup importado com sucesso", imported.getBody().get("message"));
-        assertEquals(1, profileRepository.findAll().stream()
-                .filter(item -> item.getName().equals("Família Backup"))
-                .count());
-        assertEquals(new BigDecimal("1200.00"), bankAccountRepository.findAll().stream()
-                .filter(item -> item.getName().equals("Conta Backup"))
-                .findFirst()
-                .orElseThrow()
-                .getBalance());
-        Transaction restored = transactionRepository.findAll().stream()
-                .filter(item -> item.getDescription().equals("Despesa Backup"))
-                .findFirst()
-                .orElseThrow();
-        assertEquals("Família Backup", restored.getProfile().getName());
-        assertEquals("Conta Backup", restored.getAccount().getName());
+    void jsonRoundTripPreservesStructure() throws Exception {
+        roundTrip("json", "finance-backup.json", "application/json");
     }
 
     @Test
-    void exportAndImportCsv_shouldPreserveProfilesAndAccounts() throws Exception {
-        Profile profile = profileRepository.save(new Profile("Família CSV"));
-        BankAccount account = bankAccountRepository.save(new BankAccount(
-                "Conta CSV",
-                AccountType.CHECKING,
-                new BigDecimal("850.00"),
-                profile
-        ));
-        transactionService.createTransaction(new TransactionRequest(
-                TransactionType.EXPENSE, "Despesa CSV", "Casa", new BigDecimal("25.00"),
-                java.time.LocalDate.of(2026, 1, 10), profile.getId(), account.getId(), null, false, null
-        ));
+    void csvRoundTripPreservesStructure() throws Exception {
+        roundTrip("csv", "finance-backup.csv", "text/csv");
+    }
 
-        ResponseEntity<ByteArrayResource> exported = backupController.exportBackup("csv");
-        String csv = new String(exported.getBody().getByteArray(), StandardCharsets.UTF_8);
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "finance-backup.csv",
-                "text/csv",
-                csv.getBytes(StandardCharsets.UTF_8)
-        );
+    @Test
+    void unknownCategoryIsRejected() throws Exception {
+        Profile profile = profile("Maria");
+        BankAccount account = account("Conta", "100.00");
+        accountExpense(profile, account, "10.00", LocalDate.of(2026, 1, 10));
+        String json = exported("json").replaceAll("\"categoryId\"\\s*:\\s*\\d+", "\"categoryId\" : 999999");
 
-        ResponseEntity<Map<String, String>> imported = backupController.importBackup(file);
+        mockMvc.perform(multipart("/api/backup/import")
+                        .file(new MockMultipartFile("file", "finance-backup.json", "application/json",
+                                json.getBytes(StandardCharsets.UTF_8))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Backup inválido")));
+    }
 
-        assertEquals(200, imported.getStatusCode().value());
-        assertEquals(new BigDecimal("825.00"), bankAccountRepository.findAll().stream()
-                .filter(item -> item.getName().equals("Conta CSV"))
-                .findFirst()
-                .orElseThrow()
-                .getBalance());
-        Transaction restored = transactionRepository.findAll().stream()
-                .filter(item -> item.getDescription().equals("Despesa CSV"))
-                .findFirst()
-                .orElseThrow();
-        assertEquals("Família CSV", restored.getProfile().getName());
-        assertEquals("Conta CSV", restored.getAccount().getName());
+    @Test
+    void backupMissingASectionIsRejected() throws Exception {
+        String json = exported("json").replaceFirst("\"accounts\"\\s*:\\s*\\[\\s*]\\s*,", "");
+
+        mockMvc.perform(multipart("/api/backup/import")
+                        .file(new MockMultipartFile("file", "finance-backup.json", "application/json",
+                                json.getBytes(StandardCharsets.UTF_8))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Arquivo de backup inválido ou corrompido"));
     }
 
     @Test
     void importInvalidFile_shouldRejectBackup() {
-        MockMultipartFile file = new MockMultipartFile(
-                "file",
-                "invalid.json",
-                "application/json",
-                "{ invalid".getBytes(StandardCharsets.UTF_8)
-        );
+        MockMultipartFile file = new MockMultipartFile("file", "invalid.json", "application/json",
+                "{ invalid".getBytes(StandardCharsets.UTF_8));
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
                 () -> backupController.importBackup(file));
@@ -147,26 +84,83 @@ class BackupControllerTest {
 
     @Test
     void import_shouldReplaceRecordsThatAreMissingFromBackup() throws Exception {
-        Profile importedProfile = profileRepository.save(new Profile("Perfil Importado"));
-        bankAccountRepository.save(new BankAccount("Conta Importada", AccountType.CHECKING,
-                new BigDecimal("500.00"), importedProfile));
-        ResponseEntity<ByteArrayResource> exported = backupController.exportBackup("json");
+        profile("Perfil Importado");
+        String backup = exported("json");
+        profile("Perfil Antigo");
 
-        Profile staleProfile = profileRepository.save(new Profile("Perfil Antigo"));
-        bankAccountRepository.save(new BankAccount("Conta Antiga", AccountType.CHECKING,
-                new BigDecimal("10.00"), staleProfile));
+        backupController.importBackup(new MockMultipartFile("file", "finance-backup.json", "application/json",
+                backup.getBytes(StandardCharsets.UTF_8)));
 
-        MockMultipartFile file = new MockMultipartFile(
-                "file", "finance-backup.json", "application/json",
-                exported.getBody().getByteArray()
-        );
-        backupController.importBackup(file);
+        List<String> names = profileRepository.findAll().stream().map(Profile::getName).toList();
+        assertTrue(names.contains("Perfil Importado"));
+        assertFalse(names.contains("Perfil Antigo"));
+    }
 
-        assertEquals(0, profileRepository.findAll().stream()
-                .filter(item -> item.getName().equals("Perfil Antigo"))
-                .count());
-        assertEquals(1, profileRepository.findAll().stream()
-                .filter(item -> item.getName().equals("Perfil Importado"))
-                .count());
+    private void roundTrip(String format, String filename, String contentType) throws Exception {
+        Profile profile = profile("Maria");
+        BankAccount account = account("Corrente", "5000.00");
+        CreditCard card = card("Nubank", "2000.00");
+        Category pets = categoryRepository.save(new Category("Pets", CategoryType.EXPENSE));
+        Category archived = categoryRepository.save(new Category("Antiga", CategoryType.EXPENSE));
+        archived.setArchived(true);
+
+        transactionService.createTransaction(new TransactionRequest(TransactionType.EXPENSE, "Ração", pets.getId(),
+                new BigDecimal("80.00"), LocalDate.of(2026, 1, 8), profile.getId(), account.getId(), null, false, null));
+        cardExpense(profile, card, "300.00", LocalDate.of(2026, 1, 10), 3);
+        Transaction rule = transactionService.createTransaction(new TransactionRequest(TransactionType.EXPENSE,
+                "Aluguel", expenseCategoryId("Moradia"), new BigDecimal("900.00"), LocalDate.of(2026, 1, 15),
+                profile.getId(), account.getId(), null, true, null));
+        transactionService.processRecurringTransactions(LocalDate.of(2026, 3, 15));
+        Transaction february = transactionService.getAllTransactions().stream()
+                .filter(t -> rule.getId().equals(t.getRecurrenceSourceId()) && t.getDate().equals(LocalDate.of(2026, 2, 15)))
+                .findFirst().orElseThrow();
+        transactionService.deleteTransaction(february.getId());
+        budgetService.createBudget(new BudgetRequest(expenseCategoryId("Alimentação"), new BigDecimal("500.00"), YearMonth.of(2026, 1)));
+        entityManager.flush();
+        List<String> categoriesBefore = categorySnapshot();
+        int transactionsBefore = transactionService.getAllTransactions().size();
+
+        String backup = exported(format);
+        ResponseEntity<Map<String, String>> imported = backupController.importBackup(
+                new MockMultipartFile("file", filename, contentType, backup.getBytes(StandardCharsets.UTF_8)));
+        assertEquals(200, imported.getStatusCode().value());
+
+        // Categorias voltam com nome, tipo e arquivamento
+        assertEquals(categoriesBefore, categorySnapshot());
+        assertTrue(categoriesBefore.contains("EXPENSE/Pets/false"));
+        assertTrue(categoriesBefore.contains("EXPENSE/Antiga/true"));
+
+        // Lançamentos e orçamentos apontam para as categorias restauradas
+        Transaction food = transactionService.getAllTransactions().stream()
+                .filter(t -> t.getDescription().equals("Ração")).findFirst().orElseThrow();
+        assertEquals(category("Pets", CategoryType.EXPENSE).getId(), food.getCategoryId());
+        assertEquals(category("Alimentação", CategoryType.EXPENSE).getId(), budgetRepository.findAll().get(0).getCategoryId());
+
+        // Processar a recorrência não duplica ocorrências nem recria a excluída
+        transactionService.processRecurringTransactions(LocalDate.of(2026, 3, 15));
+        List<Transaction> afterProcessing = transactionService.getAllTransactions();
+        assertEquals(transactionsBefore, afterProcessing.size());
+        assertTrue(afterProcessing.stream().noneMatch(t -> t.getDate().equals(LocalDate.of(2026, 2, 15))));
+
+        // Excluir uma parcela remove as 3
+        Transaction installment = afterProcessing.stream()
+                .filter(t -> t.getDescription().contains("Parcela 2/3")).findFirst().orElseThrow();
+        transactionService.deleteTransaction(installment.getId());
+        assertTrue(transactionService.getAllTransactions().stream().noneMatch(t -> t.getDescription().contains("Parcela")));
+    }
+
+    // Tipo, nome e arquivamento de todas as categorias, ordenados
+    private List<String> categorySnapshot() {
+        return categoryRepository.findAll().stream()
+                .map(c -> c.getType() + "/" + c.getName() + "/" + c.isArchived())
+                .sorted()
+                .toList();
+    }
+
+    private String exported(String format) throws Exception {
+        entityManager.flush();
+        ResponseEntity<ByteArrayResource> response = backupController.exportBackup(format);
+        assertEquals(200, response.getStatusCode().value());
+        return new String(response.getBody().getByteArray(), StandardCharsets.UTF_8);
     }
 }

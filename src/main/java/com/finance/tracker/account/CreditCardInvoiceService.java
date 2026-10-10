@@ -30,6 +30,18 @@ public class CreditCardInvoiceService {
         return invoiceRepository.save(invoice);
     }
 
+    // Estorno de uma compra: tira o valor da fatura do mês e devolve o limite
+    @Transactional
+    public void removePurchase(CreditCard card, BigDecimal amount, LocalDate purchaseDate) {
+        YearMonth billingMonth = calculateBillingMonth(card, purchaseDate);
+        CreditCardInvoice invoice = invoiceRepository.findByCreditCardIdAndBillingMonth(card.getId(), billingMonth)
+                .orElseThrow(() -> new IllegalStateException("Fatura da compra não encontrada"));
+        invoice.setAmount(invoice.getAmount().subtract(amount));
+        card.setAvailableLimit(card.getAvailableLimit().add(amount));
+        creditCardRepository.save(card);
+        invoiceRepository.save(invoice);
+    }
+
     private YearMonth calculateBillingMonth(CreditCard card, LocalDate purchaseDate) {
         int monthsUntilDue = purchaseDate.getDayOfMonth() <= card.getClosingDay() ? 1 : 2;
         return YearMonth.from(purchaseDate).plusMonths(monthsUntilDue);

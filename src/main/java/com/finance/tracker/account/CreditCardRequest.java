@@ -11,7 +11,6 @@ public record CreditCardRequest(
         @NotNull(message = "Limite é obrigatório") @DecimalMin(value = "0.00", inclusive = true, message = "Limite deve ser maior ou igual a zero") BigDecimal limitAmount,
         @NotNull(message = "Limite disponível é obrigatório") @DecimalMin(value = "0.00", inclusive = true, message = "Limite disponível deve ser maior ou igual a zero") BigDecimal availableLimit,
         @NotNull(message = "Dia de fechamento é obrigatório") Integer closingDay,
-        @NotNull(message = "Dia de vencimento é obrigatório") Integer dueDay,
-        @NotNull(message = "Perfil responsável é obrigatório") Long profileId
+        @NotNull(message = "Dia de vencimento é obrigatório") Integer dueDay
 ) {
 }

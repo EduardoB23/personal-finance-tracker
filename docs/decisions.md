@@ -40,6 +40,8 @@ Decisões tomadas na sessão de alinhamento de 10/10/2026 (entrevista "grilling"
 | D17 | Compras no cartão contam **no mês da compra** no extrato e no orçamento (cada parcela conta no seu mês); o saldo da conta só muda quando a fatura é paga. | Contar pelo mês da fatura |
 | D18 | **Pagamento de fatura** debita a conta escolhida, marca a fatura como paga e devolve o limite. Não conta como despesa, funciona como transferência. | Cartão apenas informativo |
 | D19 | Lançamento errado se corrige com **exclusão com estorno** (saldo, fatura e limite). Excluir uma compra parcelada remove todas as parcelas. A edição completa fica para depois. | Edição completa já no MVP |
+| D28 | **Contas e cartões são da família**, sem perfil dono. Qualquer perfil lança em qualquer conta ou cartão; o perfil só registra quem fez o lançamento. | Dono por conta (impede lançar no cartão do outro ou na conta conjunta) |
+| D29 | **Cada ocorrência recorrente aplica seu efeito ao vencer** (saldo ou fatura) e fica ligada à regra. Excluir uma ocorrência apaga só aquele mês, que não é recriado; excluir a regra encerra as futuras e mantém as passadas. Cartão aceita recorrência. | Manter o comportamento atual, em que só a primeira ocorrência mexe no saldo |
 
 ## Experiência de uso
 
@@ -78,6 +80,5 @@ Decisões tomadas na sessão de alinhamento de 10/10/2026 (entrevista "grilling"
 
 ## Em aberto (decidir no `tlc-plan` da entrega correspondente)
 
-- Excluir uma ocorrência recorrente apaga só aquela ocorrência ou também encerra a regra? (entrega 2)
 - Vai existir pagamento parcial de fatura? (entrega 5)
 - Quantas tentativas erradas de PIN antes de bloquear? (entrega 3)

@@ -8,8 +8,7 @@ import com.finance.tracker.transaction.TransactionType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import com.finance.tracker.IntegrationTest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,9 +16,7 @@ import java.time.YearMonth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@SpringBootTest
-@Transactional
-class CreditCardBillingTest {
+class CreditCardBillingTest extends IntegrationTest {
 
     @Autowired
     private ProfileRepository profileRepository;
@@ -44,8 +41,7 @@ class CreditCardBillingTest {
                 new BigDecimal("2000.00"),
                 new BigDecimal("2000.00"),
                 20,
-                10,
-                profile.getId()
+                10
         ));
     }
 
@@ -54,7 +50,7 @@ class CreditCardBillingTest {
         transactionService.createTransaction(new TransactionRequest(
                 TransactionType.EXPENSE,
                 "Compra no cartão",
-                "Alimentação",
+                expenseCategoryId("Alimentação"),
                 new BigDecimal("150.00"),
                 LocalDate.of(2026, 1, 10),
                 profile.getId(),
@@ -83,7 +79,7 @@ class CreditCardBillingTest {
 
     private void createPurchase(String description, BigDecimal amount) {
         transactionService.createTransaction(new TransactionRequest(
-                TransactionType.EXPENSE, description, "Alimentação", amount,
+                TransactionType.EXPENSE, description, expenseCategoryId("Alimentação"), amount,
                 LocalDate.of(2026, 1, 10), profile.getId(), null, null, false, null, card.getId()
         ));
     }

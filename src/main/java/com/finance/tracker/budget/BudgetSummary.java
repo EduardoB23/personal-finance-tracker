@@ -5,6 +5,7 @@ import java.time.YearMonth;
 
 public record BudgetSummary(
         Long id,
+        Long categoryId,
         String category,
         BigDecimal limitAmount,
         BigDecimal consumedAmount,

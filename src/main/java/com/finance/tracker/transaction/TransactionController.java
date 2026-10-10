@@ -28,9 +28,15 @@ public class TransactionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.createTransaction(request));
     }
 
+    @DeleteMapping("/transactions/{transactionId}")
+    public ResponseEntity<Void> deleteTransaction(@PathVariable Long transactionId) {
+        transactionService.deleteTransaction(transactionId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/transactions/{transactionId}/recurrences")
     public List<Transaction> generateRecurringTransactions(@PathVariable Long transactionId,
-                                                            @RequestParam LocalDate until) {
+                                                           @RequestParam LocalDate until) {
         return transactionService.generateRecurringTransactions(transactionId, until);
     }
 }

@@ -7,8 +7,7 @@ import com.finance.tracker.profile.Profile;
 import com.finance.tracker.profile.ProfileRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import com.finance.tracker.IntegrationTest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,9 +15,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@SpringBootTest
-@Transactional
-class InstallmentRoundingTest {
+class InstallmentRoundingTest extends IntegrationTest {
 
     @Autowired
     private ProfileRepository profileRepository;
@@ -32,10 +29,10 @@ class InstallmentRoundingTest {
     @Test
     void installmentAmount_shouldDistributeRemainderInLastInstallment() {
         Profile profile = profileRepository.save(new Profile("Família Parcelas"));
-        BankAccount account = accountRepository.save(new BankAccount("Conta", AccountType.CHECKING, new BigDecimal("1000.00"), profile));
+        BankAccount account = accountRepository.save(new BankAccount("Conta", AccountType.CHECKING, new BigDecimal("1000.00")));
 
         transactionService.createTransaction(new TransactionRequest(
-                TransactionType.EXPENSE, "Compra", "Lazer", new BigDecimal("100.00"),
+                TransactionType.EXPENSE, "Compra", expenseCategoryId("Lazer"), new BigDecimal("100.00"),
                 LocalDate.of(2026, 1, 10), profile.getId(), account.getId(), null, false, 3
         ));
 
