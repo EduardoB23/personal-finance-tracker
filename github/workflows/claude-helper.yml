@@ -1,1 +1,31 @@
+name: Claude Helper
 
+on:
+  pull_request:
+  issues:
+  workflow_dispatch:
+
+jobs:
+  claude-job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Call Claude API
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          curl https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "content-type: application/json" \
+            -H "anthropic-version: 2023-06-01" \
+            -d '{
+              "model": "claude-3-5-sonnet-20241022",
+              "max_tokens": 1024,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "Você é um assistente de desenvolvimento. Analise este projeto e dê sugestões."
+                }
+              ]
+            }'
