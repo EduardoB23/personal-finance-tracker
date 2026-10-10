@@ -27,10 +27,10 @@ Muda o `pom.xml`, `.github/copilot-instructions.md`, cria o `CLAUDE.md` e uma co
 
 ### S1 - Backend em Java 21 · 1 arquivo · ~2 KB · ~1k
 
-**C1** - Com `JAVA_HOME` no JDK 21, `mvn test` termina com 15 testes rodados, 0 falhas e 0 erros
-Proof: `JAVA_HOME="/c/Program Files/Java/jdk-21.0.11" mvn -B test` (exit 0, linha `Tests run: 15, Failures: 0, Errors: 0`)
+**C1** - Com `JAVA_HOME` no JDK 21, `mvn clean test` termina com os 15 testes originais mais o `TestDatabaseIsolationTest` (16 no total), 0 falhas e 0 erros. Ajustado durante o build: o texto dizia 15 no total, mas o C7 adiciona um teste; o padrão não ficou mais fraco
+Proof: `JAVA_HOME="/c/Program Files/Java/jdk-21.0.11" mvn -B clean test` (exit 0, linha `Tests run: 16, Failures: 0, Errors: 0`)
 
-**C2** - As classes compiladas têm `major version: 65`
+**C2** - As classes compiladas têm `major version: 65`. Exige `clean`: sem ele, o build incremental mantém as classes antigas na versão 61
 Proof: `"/c/Program Files/Java/jdk-21.0.11/bin/javap" -v target/classes/com/finance/tracker/FinanceApplication.class | grep "major version: 65"`
 
 ### S2 - Instruções de agentes coerentes · 2 arquivos · ~8 KB · ~2k
