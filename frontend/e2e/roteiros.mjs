@@ -311,6 +311,53 @@ await check('cadastro: dia de fechamento fora de 1 a 31 mostra a mensagem', asyn
   await page.getByText('Dia de fechamento deve ser entre 1 e 31').waitFor({ timeout: 5000 })
 })
 
+// Backup (critérios 10 a 15 da entrega 6). A importação substitui os dados, por isso fica por último.
+await page.getByRole('button', { name: 'Voltar' }).click()
+await page.getByRole('button', { name: 'Resumo', exact: true }).click()
+await check('backup: nenhum aviso de falha no Resumo', async () => {
+  await page.getByRole('heading', { name: 'Resumo familiar' }).waitFor({ timeout: 10000 })
+  assert((await page.getByText('Backup automático falhou').count()) === 0, 'aviso de falha aparece sem falha')
+})
+await page.getByRole('button', { name: 'Configurações' }).click()
+await page.getByRole('heading', { name: 'Configurações' }).waitFor({ timeout: 5000 })
+
+await check('backup: exportar JSON baixa finance-backup.json', async () => {
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Exportar JSON' }).click()
+  const download = await downloadPromise
+  assert(download.suggestedFilename() === 'finance-backup.json', `arquivo ${download.suggestedFilename()}`)
+})
+
+await check('backup: exportar CSV baixa finance-backup.csv', async () => {
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Exportar CSV' }).click()
+  const download = await downloadPromise
+  assert(download.suggestedFilename() === 'finance-backup.csv', `arquivo ${download.suggestedFilename()}`)
+})
+
+await check('backup: sem rolagem horizontal em Configurações', async () => {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  assert(overflow <= 0, `rolagem horizontal de ${overflow}px`)
+})
+
+const backupFile = await (await api.get(`${BASE}/api/backup/export?format=json`)).text()
+const backupPath = (await import('node:os')).tmpdir() + '/e2e-finance-backup.json'
+;(await import('node:fs')).writeFileSync(backupPath, backupFile)
+
+await check('backup: importar pede confirmação antes de enviar', async () => {
+  await page.getByLabel('Arquivo de backup').setInputFiles(backupPath)
+  await page.getByText('Importar substitui todos os dados atuais. Continuar?').waitFor({ timeout: 5000 })
+  await page.getByRole('button', { name: 'Cancelar' }).click()
+  // Limpa o campo, para que escolher o mesmo arquivo de novo dispare a troca
+  await page.getByLabel('Arquivo de backup').setInputFiles([])
+})
+
+await check('backup: confirmar importação mostra sucesso', async () => {
+  await page.getByLabel('Arquivo de backup').setInputFiles(backupPath)
+  await page.getByRole('button', { name: 'Importar', exact: true }).click()
+  await page.getByText('Backup importado com sucesso').waitFor({ timeout: 15000 })
+})
+
 await browser.close()
 
 const failed = results.filter((result) => !result.ok)

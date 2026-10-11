@@ -3,6 +3,7 @@ import { getJson, PinRequiredError } from './api.ts'
 import { BottomNav, type Tab } from './components/BottomNav.tsx'
 import { currentMonth } from './lib/finance.ts'
 import { Cadastro } from './screens/Cadastro.tsx'
+import { Configuracoes } from './screens/Configuracoes.tsx'
 import { Extrato } from './screens/Extrato.tsx'
 import { Lancar } from './screens/Lancar.tsx'
 import { PinScreen } from './screens/PinScreen.tsx'
@@ -47,6 +48,16 @@ function App() {
   if (loadError) return <p role="alert" className="p-4 text-red-700">{loadError}</p>
   if (profiles === null) return <p className="p-4 text-stone-600">Carregando...</p>
 
+  if (tab === 'configuracoes') {
+    return (
+      <Configuracoes
+        onBack={() => setTab('resumo')}
+        onImported={() => setReloadKey((key) => key + 1)}
+        onPinRequired={requirePin}
+      />
+    )
+  }
+
   if (tab === 'cadastro') {
     return (
       <Cadastro
@@ -80,6 +91,7 @@ function App() {
           currentMonth={currentMonth()}
           onTrocar={() => setPicking(true)}
           onCadastros={() => setTab('cadastro')}
+          onConfiguracoes={() => setTab('configuracoes')}
           onPinRequired={requirePin}
         />
       )}

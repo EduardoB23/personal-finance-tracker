@@ -24,3 +24,5 @@ spring:
 finance:
   # Hash BCrypt do PIN familiar, definido fora do código (D6). Gere com --gerar-hash-pin=<pin>.
   pin-hash: ${FINANCE_PIN_HASH:}
+  # Pasta do backup automático diário (D24). Padrão: OneDrive do usuário.
+  backup-dir: ${FINANCE_BACKUP_DIR:${user.home}/OneDrive}

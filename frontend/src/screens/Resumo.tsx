@@ -14,18 +14,23 @@ type BudgetSummary = {
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
-export function Resumo({ profileId, personName, currentMonth, onTrocar, onCadastros, onPinRequired }: {
+export function Resumo({ profileId, personName, currentMonth, onTrocar, onCadastros, onConfiguracoes, onPinRequired }: {
   profileId: number
   personName: string
   currentMonth: string
   onTrocar: () => void
   onCadastros: () => void
+  onConfiguracoes: () => void
   onPinRequired: () => void
 }) {
+  const [backup, setBackup] = useState<{ lastError: string | null; lastSuccessAt: string | null } | null>(null)
   const [data, setData] = useState<{ accounts: Account[]; goals: Goal[]; budgets: BudgetSummary[] } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    getJson<{ lastError: string | null; lastSuccessAt: string | null }>('/api/backup/automatic-status')
+      .then((status) => setBackup(status))
+      .catch(() => setBackup(null))
     Promise.all([
       getJson<Account[]>('/api/accounts'),
       getJson<Goal[]>('/api/goals'),
@@ -105,9 +110,18 @@ export function Resumo({ profileId, personName, currentMonth, onTrocar, onCadast
         )}
       </div>
 
+      {backup?.lastError && (
+        <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+          Backup automático falhou: {backup.lastError}. Último backup: {backup.lastSuccessAt ? backup.lastSuccessAt.replace('T', ' ').slice(0, 16) : 'nenhum'}.
+        </p>
+      )}
+
       <Faturas profileId={profileId} accounts={data.accounts} onPinRequired={onPinRequired} />
 
-      <button type="button" onClick={onCadastros} className="rounded-lg border border-stone-400 bg-white py-3 text-sm font-medium">Cadastros</button>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={onCadastros} className="rounded-lg border border-stone-400 bg-white py-3 text-sm font-medium">Cadastros</button>
+        <button type="button" onClick={onConfiguracoes} className="rounded-lg border border-stone-400 bg-white py-3 text-sm font-medium">Configurações</button>
+      </div>
     </section>
   )
 }
