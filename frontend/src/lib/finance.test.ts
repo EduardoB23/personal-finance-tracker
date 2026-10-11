@@ -6,7 +6,7 @@ function tx(overrides: Partial<Transaction>): Transaction {
   return {
     id: 1, type: 'EXPENSE', description: 'x', amount: 0, date: '2026-01-10', profileId: 1,
     categoryId: 1, accountId: 1, creditCardId: null, targetAccountId: null, installmentCount: null,
-    recurring: false, ...overrides,
+    installmentGroupId: null, recurrenceSourceId: null, recurring: false, ...overrides,
   }
 }
 

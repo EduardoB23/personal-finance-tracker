@@ -121,7 +121,7 @@ public class BackupController {
                         .map(b -> new BackupExport.BudgetData(b.getId(), b.getCategoryId(), b.getLimitAmount(), b.getMonth())).toList(),
                 goalRepository.findAll().stream()
                         .map(g -> new BackupExport.GoalData(g.getId(), g.getTitle(), g.getTargetAmount(),
-                                g.getCurrentAmount(), g.getProfile().getId())).toList(),
+                                g.getCurrentAmount())).toList(),
                 transactionRepository.findAll().stream()
                         .map(t -> new BackupExport.TransactionData(t.getId(), t.getType(), t.getDescription(),
                                 t.getCategoryId(), t.getAmount(), t.getDate(), t.getProfileId(), t.getAccountId(),
@@ -218,7 +218,7 @@ public class BackupController {
                 required(categories, data.categoryId(), "categoria"), data.limitAmount(), data.month())));
 
         export.goals().forEach(data -> {
-            Goal goal = new Goal(data.title(), data.targetAmount(), required(profiles, data.profileId(), "perfil"));
+            Goal goal = new Goal(data.title(), data.targetAmount());
             goal.setCurrentAmount(data.currentAmount());
             goalRepository.save(goal);
         });

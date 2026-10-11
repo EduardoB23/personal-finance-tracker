@@ -51,7 +51,7 @@ function App() {
   if (profiles === null) return <p className="p-4 text-stone-600">Carregando...</p>
 
   if (tab === 'orcamentos') return <Orcamentos onBack={() => setTab('resumo')} onPinRequired={requirePin} />
-  if (tab === 'metas') return <Metas profiles={profiles} onBack={() => setTab('resumo')} onPinRequired={requirePin} />
+  if (tab === 'metas') return <Metas onBack={() => setTab('resumo')} onPinRequired={requirePin} />
 
   if (tab === 'configuracoes') {
     return (

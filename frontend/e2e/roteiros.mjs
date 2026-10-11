@@ -292,6 +292,18 @@ await check('extrato: filtro por pessoa restringe a lista', async () => {
   await page.getByRole('group', { name: 'Filtrar por pessoa' }).getByRole('button', { name: 'Todos' }).click()
 })
 
+await check('extrato: editar um lançamento simples salva e mostra a atualização', async () => {
+  await page.getByRole('button', { name: 'Editar' }).first().click()
+  await page.getByLabel('Descrição').first().fill('Editado no E2E')
+  await page.getByRole('button', { name: 'Salvar' }).click()
+  await page.getByText('Lançamento atualizado').waitFor({ timeout: 10000 })
+  await page.getByText('Editado no E2E').first().waitFor({ timeout: 5000 })
+})
+
+await check('extrato: parcelas mostram que não podem ser editadas', async () => {
+  await page.getByText('Parcelas e recorrências não podem ser editadas por aqui').first().waitFor({ timeout: 5000 })
+})
+
 await check('extrato: mês vazio mostra mensagem e totais zero', async () => {
   for (let step = 0; step < 36; step++) await page.getByRole('button', { name: 'Mês anterior' }).click()
   await page.getByText('Nenhum lançamento neste mês').waitFor({ timeout: 10000 })
@@ -339,7 +351,6 @@ await check('metas: criar meta e aportar mostra o progresso', async () => {
   await page.getByRole('heading', { name: 'Metas' }).waitFor({ timeout: 5000 })
   await page.getByLabel('Título da meta').fill('Viagem')
   await page.getByLabel('Valor alvo').fill('1000')
-  await page.getByLabel('Perfil da meta').selectOption({ label: 'Maria' })
   await page.getByRole('button', { name: 'Criar meta' }).click()
   await page.getByText('Meta criada').waitFor({ timeout: 10000 })
   await page.getByLabel('Aporte para Viagem').fill('250')

@@ -11,10 +11,10 @@ test('budgetNeedsCategoryAndLimit', () => {
 })
 
 test('goalNeedsTitleTargetAndProfile', () => {
-  assert.equal(canCreateGoal('Viagem', '5000', 1), true)
-  assert.equal(canCreateGoal('  ', '5000', 1), false)
-  assert.equal(canCreateGoal('Viagem', '5000', null), false)
-  assert.equal(canCreateGoal('Viagem', '', 1), false)
+  assert.equal(canCreateGoal('Viagem', '5000'), true)
+  assert.equal(canCreateGoal('  ', '5000'), false)
+  assert.equal(canCreateGoal('Viagem', ''), false)
+  assert.equal(canCreateGoal('Viagem', '-1'), false)
 })
 
 test('contributionMustBePositive', () => {

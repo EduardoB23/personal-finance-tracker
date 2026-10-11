@@ -98,36 +98,12 @@ public class TransactionService {
             throw new IllegalArgumentException("Transferências não podem ser recorrentes");
         }
 
-        Profile profile = profileRepository.findById(request.profileId())
-                .orElseThrow(() -> new IllegalArgumentException("Perfil não encontrado"));
-        Category category = resolveCategory(request.type(), request.categoryId());
-
-        CreditCard creditCard = null;
-        BankAccount account = null;
-        if (request.creditCardId() != null) {
-            if (request.type() != TransactionType.EXPENSE) {
-                throw new IllegalArgumentException("Cartão de crédito aceita apenas despesas");
-            }
-            creditCard = creditCardRepository.findById(request.creditCardId())
-                    .orElseThrow(() -> new IllegalArgumentException("Cartão de crédito não encontrado"));
-        } else if (request.accountId() == null) {
-            throw new IllegalArgumentException("Conta de origem é obrigatória");
-        } else {
-            account = bankAccountRepository.findById(request.accountId())
-                    .orElseThrow(() -> new IllegalArgumentException("Conta de origem não encontrada"));
-        }
-
-        BankAccount targetAccount = null;
-        if (request.type() == TransactionType.TRANSFER) {
-            if (request.targetAccountId() == null) {
-                throw new IllegalArgumentException("Transferência exige conta de destino");
-            }
-            targetAccount = bankAccountRepository.findById(request.targetAccountId())
-                    .orElseThrow(() -> new IllegalArgumentException("Conta de destino não encontrada"));
-            if (targetAccount.getId().equals(account.getId())) {
-                throw new IllegalArgumentException("Conta de origem e destino não podem ser iguais");
-            }
-        }
+        Sources sources = resolveSources(request);
+        Profile profile = sources.profile();
+        Category category = sources.category();
+        BankAccount account = sources.account();
+        CreditCard creditCard = sources.creditCard();
+        BankAccount targetAccount = sources.targetAccount();
 
         String description = request.description().trim();
         if (installmentCount == 1) {
@@ -220,6 +196,70 @@ public class TransactionService {
             generated.add(occurrence);
         }
         return generated;
+    }
+
+    private record Sources(Profile profile, Category category, BankAccount account, CreditCard creditCard,
+                           BankAccount targetAccount) {
+    }
+
+    // Validação de origem, destino e categoria, igual para criar e editar
+    private Sources resolveSources(TransactionRequest request) {
+        Profile profile = profileRepository.findById(request.profileId())
+                .orElseThrow(() -> new IllegalArgumentException("Perfil não encontrado"));
+        Category category = resolveCategory(request.type(), request.categoryId());
+
+        CreditCard creditCard = null;
+        BankAccount account = null;
+        if (request.creditCardId() != null) {
+            if (request.type() != TransactionType.EXPENSE) {
+                throw new IllegalArgumentException("Cartão de crédito aceita apenas despesas");
+            }
+            creditCard = creditCardRepository.findById(request.creditCardId())
+                    .orElseThrow(() -> new IllegalArgumentException("Cartão de crédito não encontrado"));
+        } else if (request.accountId() == null) {
+            throw new IllegalArgumentException("Conta de origem é obrigatória");
+        } else {
+            account = bankAccountRepository.findById(request.accountId())
+                    .orElseThrow(() -> new IllegalArgumentException("Conta de origem não encontrada"));
+        }
+
+        BankAccount targetAccount = null;
+        if (request.type() == TransactionType.TRANSFER) {
+            if (request.targetAccountId() == null) {
+                throw new IllegalArgumentException("Transferência exige conta de destino");
+            }
+            targetAccount = bankAccountRepository.findById(request.targetAccountId())
+                    .orElseThrow(() -> new IllegalArgumentException("Conta de destino não encontrada"));
+            if (targetAccount.getId().equals(account.getId())) {
+                throw new IllegalArgumentException("Conta de origem e destino não podem ser iguais");
+            }
+        }
+
+        return new Sources(profile, category, account, creditCard, targetAccount);
+    }
+
+    // Edita um lançamento simples: estorna o efeito antigo e aplica o novo, na mesma transação
+    @Transactional
+    public Transaction updateTransaction(Long transactionId, TransactionRequest request) {
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new IllegalArgumentException("Transação não encontrada"));
+        if (transaction.getInstallmentGroupId() != null || transaction.getRecurrenceSourceId() != null
+                || transaction.isRecurring()) {
+            throw new IllegalArgumentException("Edição de parcelas e recorrências não é suportada");
+        }
+        if (request.type() != transaction.getType()) {
+            throw new IllegalArgumentException("Tipo do lançamento não pode mudar");
+        }
+        if (request.recurring() || (request.installmentCount() != null && request.installmentCount() > 1)) {
+            throw new IllegalArgumentException("Edição não altera parcelamento nem recorrência");
+        }
+
+        Sources sources = resolveSources(request);
+        applyEffect(transaction, true);
+        transaction.edit(request.description().trim(), sources.category(), request.amount(), request.date(),
+                sources.profile(), sources.account(), sources.creditCard(), sources.targetAccount());
+        applyEffect(transaction, false);
+        return transaction;
     }
 
     private Category resolveCategory(TransactionType type, Long categoryId) {

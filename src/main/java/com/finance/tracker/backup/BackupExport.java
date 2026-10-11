@@ -35,7 +35,7 @@ public record BackupExport(
 
     public record BudgetData(Long id, Long categoryId, BigDecimal limitAmount, YearMonth month) {}
 
-    public record GoalData(Long id, String title, BigDecimal targetAmount, BigDecimal currentAmount, Long profileId) {}
+    public record GoalData(Long id, String title, BigDecimal targetAmount, BigDecimal currentAmount) {}
 
     public record TransactionData(Long id, TransactionType type, String description, Long categoryId,
                                   BigDecimal amount, LocalDate date, Long profileId, Long accountId,

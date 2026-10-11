@@ -100,6 +100,18 @@ public class Transaction {
     public BankAccount getTargetAccount() { return targetAccount; }
     public boolean isRecurring() { return recurring; }
     public void setRecurring(boolean recurring) { this.recurring = recurring; }
+
+    public void edit(String description, Category category, BigDecimal amount, LocalDate date, Profile profile,
+                     BankAccount account, CreditCard creditCard, BankAccount targetAccount) {
+        this.description = description;
+        this.category = category;
+        this.amount = amount;
+        this.date = date;
+        this.profile = profile;
+        this.account = account;
+        this.creditCard = creditCard;
+        this.targetAccount = targetAccount;
+    }
     public Integer getInstallmentCount() { return installmentCount; }
     public void setInstallmentCount(Integer installmentCount) { this.installmentCount = installmentCount; }
     public Long getInstallmentGroupId() { return installmentGroupId; }

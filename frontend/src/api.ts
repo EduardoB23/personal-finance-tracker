@@ -18,9 +18,17 @@ export async function getJson<T>(url: string): Promise<T> {
 }
 
 // Envia um JSON e devolve a mensagem da API quando ela recusa (400, 429, ...)
-export async function postJson(url: string, body: unknown): Promise<SaveResult> {
+export function postJson(url: string, body: unknown): Promise<SaveResult> {
+  return sendJson('POST', url, body)
+}
+
+export function putJson(url: string, body: unknown): Promise<SaveResult> {
+  return sendJson('PUT', url, body)
+}
+
+async function sendJson(method: 'POST' | 'PUT', url: string, body: unknown): Promise<SaveResult> {
   const response = await fetch(url, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })

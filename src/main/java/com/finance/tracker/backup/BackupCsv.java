@@ -41,7 +41,7 @@ final class BackupCsv {
         export.budgets().forEach(b -> row(csv, "BUDGET", Map.of("id", b.id(), "categoryId", b.categoryId(),
                 "limitAmount", b.limitAmount(), "month", b.month())));
         export.goals().forEach(g -> row(csv, "GOAL", Map.of("id", g.id(), "title", g.title(),
-                "targetAmount", g.targetAmount(), "currentAmount", g.currentAmount(), "profileId", g.profileId())));
+                "targetAmount", g.targetAmount(), "currentAmount", g.currentAmount())));
         export.transactions().forEach(t -> {
             Map<String, Object> values = new HashMap<>();
             values.put("id", t.id());
@@ -110,7 +110,7 @@ final class BackupCsv {
                 case "BUDGET" -> budgets.add(new BackupExport.BudgetData(longValue(row, "id"),
                         longValue(row, "categoryId"), decimal(row, "limitAmount"), YearMonth.parse(row.get("month"))));
                 case "GOAL" -> goals.add(new BackupExport.GoalData(longValue(row, "id"), row.get("title"),
-                        decimal(row, "targetAmount"), decimal(row, "currentAmount"), longValue(row, "profileId")));
+                        decimal(row, "targetAmount"), decimal(row, "currentAmount")));
                 case "TRANSACTION" -> transactions.add(new BackupExport.TransactionData(longValue(row, "id"),
                         TransactionType.valueOf(row.get("type")), row.get("description"), longValue(row, "categoryId"),
                         decimal(row, "amount"), LocalDate.parse(row.get("date")), longValue(row, "profileId"),

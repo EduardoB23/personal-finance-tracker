@@ -1,14 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { getJson, postJson, PinRequiredError } from '../api.ts'
 import { canContribute, canCreateGoal, progressPercent } from '../lib/budgetsGoals.ts'
-import type { Profile } from './QuemSouEu.tsx'
 
-type Goal = { id: number; title: string; targetAmount: number; currentAmount: number; profileId: number }
+type Goal = { id: number; title: string; targetAmount: number; currentAmount: number }
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
-export function Metas({ profiles, onBack, onPinRequired }: {
-  profiles: Profile[]
+export function Metas({ onBack, onPinRequired }: {
   onBack: () => void
   onPinRequired: () => void
 }) {
@@ -17,7 +15,6 @@ export function Metas({ profiles, onBack, onPinRequired }: {
   const [reload, setReload] = useState(0)
   const [title, setTitle] = useState('')
   const [target, setTarget] = useState('')
-  const [profileId, setProfileId] = useState<number | null>(null)
   const [contributions, setContributions] = useState<Record<number, string>>({})
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null)
 
@@ -32,9 +29,9 @@ export function Metas({ profiles, onBack, onPinRequired }: {
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!canCreateGoal(title, target, profileId)) return
+    if (!canCreateGoal(title, target)) return
     try {
-      const result = await postJson('/api/goals', { title: title.trim(), targetAmount: Number(target.replace(',', '.')), profileId })
+      const result = await postJson('/api/goals', { title: title.trim(), targetAmount: Number(target.replace(',', '.')) })
       if (result.ok) {
         setTitle('')
         setTarget('')
@@ -69,7 +66,6 @@ export function Metas({ profiles, onBack, onPinRequired }: {
   }
 
   const fieldClass = 'rounded-lg border border-stone-400 bg-white px-3 py-3 text-base'
-  const nameOf = (id: number) => profiles.find((profile) => profile.id === id)?.name ?? ''
 
   return (
     <section className="mx-auto grid max-w-md grid-cols-[minmax(0,1fr)] gap-5 px-4 pb-28 pt-6">
@@ -85,7 +81,7 @@ export function Metas({ profiles, onBack, onPinRequired }: {
         const percent = progressPercent(goal.currentAmount, goal.targetAmount)
         return (
           <article key={goal.id} className="grid min-w-0 gap-2 rounded-lg bg-white p-3">
-            <div className="flex flex-wrap justify-between gap-x-3 text-sm"><span className="min-w-0 break-words">{goal.title} · {nameOf(goal.profileId)}</span><span className="min-w-0 break-words">{currency.format(goal.currentAmount)} / {currency.format(goal.targetAmount)}</span></div>
+            <div className="flex flex-wrap justify-between gap-x-3 text-sm"><span className="min-w-0 break-words">{goal.title}</span><span className="min-w-0 break-words">{currency.format(goal.currentAmount)} / {currency.format(goal.targetAmount)}</span></div>
             <div className="h-2 rounded bg-stone-200"><div className="h-2 rounded bg-emerald-700" style={{ width: `${percent}%` }} /></div>
             <p className="text-xs text-stone-500">{percent.toFixed(0)}% da meta</p>
             <form className="flex min-w-0 gap-2" onSubmit={(event) => void contribute(goal, event)}>
@@ -100,11 +96,7 @@ export function Metas({ profiles, onBack, onPinRequired }: {
         <h2 className="font-semibold">Nova meta</h2>
         <input aria-label="Título da meta" placeholder="Título" value={title} onChange={(event) => setTitle(event.target.value)} className={fieldClass} />
         <input aria-label="Valor alvo" inputMode="decimal" placeholder="Valor alvo (R$)" value={target} onChange={(event) => setTarget(event.target.value)} className={fieldClass} />
-        <select aria-label="Perfil da meta" value={profileId ?? ''} onChange={(event) => setProfileId(event.target.value ? Number(event.target.value) : null)} className={fieldClass}>
-          <option value="">Escolha um perfil</option>
-          {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
-        </select>
-        <button type="submit" disabled={!canCreateGoal(title, target, profileId)} className="rounded-lg bg-emerald-700 py-3 font-semibold text-white disabled:opacity-50">Criar meta</button>
+        <button type="submit" disabled={!canCreateGoal(title, target)} className="rounded-lg bg-emerald-700 py-3 font-semibold text-white disabled:opacity-50">Criar meta</button>
         {feedback && <p role={feedback.ok ? 'status' : 'alert'} className={feedback.ok ? 'text-sm text-emerald-800' : 'text-sm text-red-700'}>{feedback.text}</p>}
       </form>
     </section>

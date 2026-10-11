@@ -1,7 +1,5 @@
 package com.finance.tracker.goal;
 
-import com.finance.tracker.profile.Profile;
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 
@@ -22,18 +20,13 @@ public class Goal {
     @Column(nullable = false)
     private BigDecimal currentAmount = BigDecimal.ZERO;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "profile_id", nullable = false)
-    @JsonBackReference("profile-goals")
-    private Profile profile;
 
     public Goal() {
     }
 
-    public Goal(String title, BigDecimal targetAmount, Profile profile) {
+    public Goal(String title, BigDecimal targetAmount) {
         this.title = title;
         this.targetAmount = targetAmount;
-        this.profile = profile;
     }
 
     public Long getId() {
@@ -68,11 +61,4 @@ public class Goal {
         this.currentAmount = currentAmount;
     }
 
-    public Profile getProfile() {
-        return profile;
-    }
-
-    public void setProfile(Profile profile) {
-        this.profile = profile;
-    }
 }

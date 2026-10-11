@@ -183,8 +183,7 @@ class TransactionServiceTest extends IntegrationTest {
     void addContribution_shouldTrackProgressWithoutExceedingTarget() {
         Goal goal = goalService.createGoal(new GoalRequest(
                 "Viagem",
-                new BigDecimal("1000.00"),
-                profile.getId()
+                new BigDecimal("1000.00")
         ));
 
         Goal updatedGoal = goalService.addContribution(

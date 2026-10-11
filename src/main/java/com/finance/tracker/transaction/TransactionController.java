@@ -29,6 +29,11 @@ public class TransactionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.createTransaction(request));
     }
 
+    @PutMapping("/transactions/{transactionId}")
+    public Transaction updateTransaction(@PathVariable Long transactionId, @Valid @RequestBody TransactionRequest request) {
+        return transactionService.updateTransaction(transactionId, request);
+    }
+
     @DeleteMapping("/transactions/{transactionId}")
     public ResponseEntity<Void> deleteTransaction(@PathVariable Long transactionId) {
         transactionService.deleteTransaction(transactionId);

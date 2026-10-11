@@ -6,9 +6,10 @@ export function canCreateBudget(categoryId: number | null, limit: string): boole
   return categoryId !== null && Number.isFinite(value) && value >= 0 && limit.trim() !== ''
 }
 
-export function canCreateGoal(title: string, target: string, profileId: number | null): boolean {
+// Meta é da família (decisão da COD-16): não precisa de perfil
+export function canCreateGoal(title: string, target: string): boolean {
   const value = parseAmount(target)
-  return title.trim() !== '' && profileId !== null && Number.isFinite(value) && value >= 0 && target.trim() !== ''
+  return title.trim() !== '' && Number.isFinite(value) && value >= 0 && target.trim() !== ''
 }
 
 export function canContribute(amount: string): boolean {

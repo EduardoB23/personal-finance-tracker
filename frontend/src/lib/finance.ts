@@ -14,6 +14,8 @@ export type Transaction = {
   creditCardId: number | null
   targetAccountId: number | null
   installmentCount: number | null
+  installmentGroupId: number | null
+  recurrenceSourceId: number | null
   recurring: boolean
 }
 
