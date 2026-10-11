@@ -19,5 +19,8 @@ spring:
         format_sql: true
   h2:
     console:
-      enabled: true
-      path: /h2-console
+      enabled: false
+
+finance:
+  # Hash BCrypt do PIN familiar, definido fora do código (D6). Gere com --gerar-hash-pin=<pin>.
+  pin-hash: ${FINANCE_PIN_HASH:}
