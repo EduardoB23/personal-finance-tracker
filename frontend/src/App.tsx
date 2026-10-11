@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import './App.css'
 
 type Profile = { id: number; name: string }
@@ -21,10 +21,64 @@ type DashboardData = {
 
 const currentMonth = new Intl.DateTimeFormat('sv-SE', { year: 'numeric', month: '2-digit' }).format(new Date())
 
+// Sinaliza que a API pediu o PIN familiar (401), para mostrar a tela de PIN em vez de um erro
+class PinRequiredError extends Error {}
+
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url)
+  if (response.status === 401) throw new PinRequiredError()
   if (!response.ok) throw new Error('Não foi possível carregar os dados financeiros.')
   return response.json() as Promise<T>
+}
+
+function PinScreen({ onUnlocked }: { onUnlocked: () => void }) {
+  const [pin, setPin] = useState('')
+  const [message, setMessage] = useState<string | null>(null)
+  const [sending, setSending] = useState(false)
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setSending(true)
+    setMessage(null)
+    try {
+      const response = await fetch('/api/auth/pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      })
+      if (response.status === 204) {
+        onUnlocked()
+        return
+      }
+      const body = (await response.json().catch(() => ({}))) as { message?: string }
+      setMessage(body.message ?? 'Não foi possível entrar.')
+    } catch {
+      setMessage('Não foi possível falar com o servidor.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <main className="app-shell state-screen">
+      <form className="pin-form" onSubmit={submit}>
+        <h1>Entrar no painel</h1>
+        <label>
+          PIN familiar
+          <input
+            type="password"
+            inputMode="numeric"
+            autoComplete="current-password"
+            autoFocus
+            value={pin}
+            onChange={(event) => setPin(event.target.value)}
+          />
+        </label>
+        <button type="submit" className="primary-btn" disabled={sending}>Entrar</button>
+        {message && <p className="state-error">{message}</p>}
+      </form>
+    </main>
+  )
 }
 
 function formatCurrency(value: number) {
@@ -34,6 +88,8 @@ function formatCurrency(value: number) {
 function App() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [pinRequired, setPinRequired] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
 
   useEffect(() => {
     Promise.all([
@@ -43,8 +99,14 @@ function App() {
       getJson<BudgetSummary[]>(`/api/budgets/summary?month=${currentMonth}`),
     ])
       .then(([profiles, accounts, goals, budgets]) => setData({ profiles, accounts, goals, budgets }))
-      .catch((requestError: unknown) => setError(requestError instanceof Error ? requestError.message : 'Erro inesperado.'))
-  }, [])
+      .catch((requestError: unknown) => {
+        if (requestError instanceof PinRequiredError) {
+          setPinRequired(true)
+          return
+        }
+        setError(requestError instanceof Error ? requestError.message : 'Erro inesperado.')
+      })
+  }, [loadAttempt])
 
   async function exportData() {
     const response = await fetch('/api/backup/export')
@@ -55,6 +117,17 @@ function App() {
     link.download = 'finance-backup.json'
     link.click()
     URL.revokeObjectURL(link.href)
+  }
+
+  if (pinRequired) {
+    return (
+      <PinScreen
+        onUnlocked={() => {
+          setPinRequired(false)
+          setLoadAttempt((attempt) => attempt + 1)
+        }}
+      />
+    )
   }
 
   if (error) {

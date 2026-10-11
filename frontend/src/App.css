@@ -132,3 +132,17 @@ body {
   .panel.wide { grid-column: auto; }
   .progress-label { align-items: flex-start; flex-direction: column; gap: 2px; }
 }
+
+.pin-form {
+  display: grid;
+  gap: 14px;
+  width: min(100%, 320px);
+  margin: 0 auto;
+}
+
+.pin-form input {
+  font: inherit;
+  font-size: 1.4rem;
+  letter-spacing: 0.3em;
+  padding: 10px 12px;
+}
