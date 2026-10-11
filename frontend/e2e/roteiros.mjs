@@ -92,6 +92,11 @@ await check('quem-sou-eu: escolha vai para o Resumo e fica gravada', async () =>
   const stored = await page.evaluate(() => localStorage.getItem('quem-sou-eu'))
   assert(stored && JSON.parse(stored).state.profileId === maria.id, 'chave quem-sou-eu sem o id')
 })
+await check('faturas: vazio mostra mensagem', async () => {
+  const section = page.getByRole('region', { name: 'Faturas' })
+  await section.getByText('Nenhuma fatura em aberto').waitFor({ timeout: 10000 })
+})
+
 // C7: recarregar mantém a escolha
 await page.reload()
 await check('quem-sou-eu: com escolha salva, recarregar abre direto no Resumo', async () => {
@@ -191,6 +196,81 @@ await check('lancar: dois toques geram um lançamento', async () => {
   const after = await (await api.get(`${BASE}/api/transactions?month=${currentMonthIso()}`)).json()
   const countAfter = after.filter((item) => item.amount === 7.77).length
   assert(countAfter - countBefore === 1, `criou ${countAfter - countBefore} lançamentos com um duplo toque`)
+})
+
+// Faturas: pagar, pagamento parcial, estorno (critérios 19 a 28)
+const paymentCount = async () => {
+  const cards = await (await api.get(`${BASE}/api/credit-cards`)).json()
+  let total = 0
+  for (const card of cards) {
+    const invoices = await (await api.get(`${BASE}/api/credit-cards/${card.id}/invoices`)).json()
+    total += invoices.reduce((sum, invoice) => sum + invoice.payments.length, 0)
+  }
+  return total
+}
+const accountId = (await (await api.get(`${BASE}/api/accounts`)).json()).find((account) => account.name === 'Conjunta').id
+
+await page.getByRole('button', { name: 'Resumo', exact: true }).click()
+const faturas = page.getByRole('region', { name: 'Faturas' })
+await check('faturas: lista com restante e status', async () => {
+  await faturas.getByText(/Restante R\$/).first().waitFor({ timeout: 10000 })
+  assert(/Aberta|Parcial/.test(await faturas.innerText()), 'sem status de fatura')
+})
+
+await check('faturas: pagar abre com o restante e pagamento parcial atualiza', async () => {
+  await faturas.getByRole('button', { name: 'Pagar', exact: true }).first().click()
+  const restante = (await faturas.locator('p').filter({ hasText: 'Restante' }).first().innerText()).match(/R\$\s?([\d.]+,\d{2})/)[1]
+  assert((await faturas.getByLabel('Valor (R$)').inputValue()) === restante, 'valor padrão diferente do restante')
+  await faturas.getByLabel('Valor (R$)').fill('1,00')
+  await faturas.getByLabel('Pagar com a conta').selectOption({ label: 'Conjunta' })
+  await faturas.locator('form').getByRole('button', { name: 'Pagar', exact: true }).click()
+  await faturas.getByText('Pagamento registrado').waitFor({ timeout: 10000 })
+})
+
+await check('faturas: valor acima do restante fica na tela', async () => {
+  await faturas.getByRole('button', { name: 'Pagar', exact: true }).first().click()
+  await faturas.getByLabel('Valor (R$)').fill('999999999')
+  await faturas.getByLabel('Pagar com a conta').selectOption({ label: 'Conjunta' })
+  await faturas.locator('form').getByRole('button', { name: 'Pagar', exact: true }).click()
+  await faturas.getByText('Valor maior que o saldo da fatura').waitFor({ timeout: 5000 })
+  assert((await faturas.getByLabel('Valor (R$)').inputValue()) === '999999999', 'valor digitado foi perdido')
+  await faturas.getByRole('button', { name: 'Cancelar' }).click()
+})
+
+await check('faturas: dois toques geram um pagamento', async () => {
+  const before = await paymentCount()
+  await faturas.getByRole('button', { name: 'Pagar', exact: true }).first().click()
+  await faturas.getByLabel('Valor (R$)').fill('2,00')
+  await faturas.getByLabel('Pagar com a conta').selectOption({ label: 'Conjunta' })
+  await faturas.locator('form').getByRole('button', { name: 'Pagar', exact: true }).dblclick()
+  await faturas.getByText('Pagamento registrado').waitFor({ timeout: 10000 })
+  await page.waitForTimeout(800)
+  assert((await paymentCount()) - before === 1, 'dois toques criaram mais de um pagamento')
+})
+
+await check('faturas: pagamentos aparecem com estornar', async () => {
+  await faturas.getByRole('button', { name: 'Estornar', exact: true }).first().waitFor({ timeout: 5000 })
+})
+
+await check('faturas: estornar pede confirmação', async () => {
+  const before = await paymentCount()
+  await faturas.getByRole('button', { name: 'Estornar', exact: true }).first().click()
+  await faturas.getByText(/Estornar pagamento de R\$/).waitFor({ timeout: 5000 })
+  assert((await paymentCount()) === before, 'estorno enviado antes da confirmação')
+  await faturas.getByRole('button', { name: 'Cancelar' }).click()
+})
+
+await check('faturas: estorno confirmado atualiza', async () => {
+  const before = await paymentCount()
+  await faturas.getByRole('button', { name: 'Estornar', exact: true }).first().click()
+  await faturas.getByRole('button', { name: 'Estornar', exact: true }).nth(0).click()
+  await faturas.getByText('Pagamento estornado').waitFor({ timeout: 10000 })
+  assert((await paymentCount()) - before === -1, 'estorno não reduziu os pagamentos')
+})
+
+await check('faturas: sem rolagem horizontal', async () => {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  assert(overflow <= 0, `rolagem horizontal de ${overflow}px`)
 })
 
 // Extrato

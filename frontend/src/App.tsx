@@ -75,6 +75,7 @@ function App() {
     <>
       {tab === 'resumo' && (
         <Resumo
+          profileId={selected.id}
           personName={selected.name}
           currentMonth={currentMonth()}
           onTrocar={() => setPicking(true)}

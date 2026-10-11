@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getJson, PinRequiredError } from '../api.ts'
+import { Faturas } from './Faturas.tsx'
 
 type Account = { id: number; name: string; type: string; balance: number }
 type Goal = { id: number; title: string; targetAmount: number; currentAmount: number }
@@ -13,7 +14,8 @@ type BudgetSummary = {
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
-export function Resumo({ personName, currentMonth, onTrocar, onCadastros, onPinRequired }: {
+export function Resumo({ profileId, personName, currentMonth, onTrocar, onCadastros, onPinRequired }: {
+  profileId: number
   personName: string
   currentMonth: string
   onTrocar: () => void
@@ -102,6 +104,8 @@ export function Resumo({ personName, currentMonth, onTrocar, onCadastros, onPinR
           })
         )}
       </div>
+
+      <Faturas profileId={profileId} accounts={data.accounts} onPinRequired={onPinRequired} />
 
       <button type="button" onClick={onCadastros} className="rounded-lg border border-stone-400 bg-white py-3 text-sm font-medium">Cadastros</button>
     </section>
