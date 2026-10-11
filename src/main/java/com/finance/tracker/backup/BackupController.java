@@ -5,6 +5,8 @@ import com.finance.tracker.account.BankAccountRepository;
 import com.finance.tracker.account.CreditCard;
 import com.finance.tracker.account.CreditCardInvoice;
 import com.finance.tracker.account.CreditCardInvoiceRepository;
+import com.finance.tracker.account.InvoicePayment;
+import com.finance.tracker.account.InvoicePaymentRepository;
 import com.finance.tracker.account.CreditCardRepository;
 import com.finance.tracker.budget.Budget;
 import com.finance.tracker.budget.BudgetRepository;
@@ -43,6 +45,7 @@ public class BackupController {
     private final BankAccountRepository bankAccountRepository;
     private final CreditCardRepository creditCardRepository;
     private final CreditCardInvoiceRepository creditCardInvoiceRepository;
+    private final InvoicePaymentRepository invoicePaymentRepository;
     private final BudgetRepository budgetRepository;
     private final GoalRepository goalRepository;
     private final TransactionRepository transactionRepository;
@@ -61,7 +64,9 @@ public class BackupController {
                             GoalRepository goalRepository,
                             TransactionRepository transactionRepository,
                             RecurrenceExceptionRepository recurrenceExceptionRepository,
+                            InvoicePaymentRepository invoicePaymentRepository,
                             ObjectMapper objectMapper) {
+        this.invoicePaymentRepository = invoicePaymentRepository;
         this.profileRepository = profileRepository;
         this.categoryRepository = categoryRepository;
         this.bankAccountRepository = bankAccountRepository;
@@ -79,11 +84,18 @@ public class BackupController {
     public ResponseEntity<ByteArrayResource> exportBackup(
             @RequestParam(defaultValue = "json") String format) throws Exception {
         boolean csv = "csv".equalsIgnoreCase(format);
-        if (!csv && !"json".equalsIgnoreCase(format)) {
-            throw new IllegalArgumentException("Formato de backup deve ser JSON ou CSV");
+        boolean xlsx = "xlsx".equalsIgnoreCase(format);
+        if (!csv && !xlsx && !"json".equalsIgnoreCase(format)) {
+            throw new IllegalArgumentException("Formato de backup deve ser JSON, CSV ou XLSX");
         }
 
         BackupExport export = createExport();
+        if (xlsx) {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            headers.setContentDispositionFormData("attachment", "finance-backup.xlsx");
+            return ResponseEntity.ok().headers(headers).body(new ByteArrayResource(BackupXlsx.write(export)));
+        }
         String content = csv ? BackupCsv.write(export) : objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(export);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(csv ? MediaType.parseMediaType("text/csv") : MediaType.APPLICATION_JSON);
@@ -109,14 +121,18 @@ public class BackupController {
                         .map(b -> new BackupExport.BudgetData(b.getId(), b.getCategoryId(), b.getLimitAmount(), b.getMonth())).toList(),
                 goalRepository.findAll().stream()
                         .map(g -> new BackupExport.GoalData(g.getId(), g.getTitle(), g.getTargetAmount(),
-                                g.getCurrentAmount(), g.getProfile().getId())).toList(),
+                                g.getCurrentAmount())).toList(),
                 transactionRepository.findAll().stream()
                         .map(t -> new BackupExport.TransactionData(t.getId(), t.getType(), t.getDescription(),
                                 t.getCategoryId(), t.getAmount(), t.getDate(), t.getProfileId(), t.getAccountId(),
                                 t.getTargetAccountId(), t.getCreditCardId(), t.isRecurring(), t.getInstallmentCount(),
                                 t.getInstallmentGroupId(), t.getRecurrenceSourceId())).toList(),
                 recurrenceExceptionRepository.findAll().stream()
-                        .map(e -> new BackupExport.RecurrenceExceptionData(e.getSourceTransactionId(), e.getOccurrenceDate())).toList()
+                        .map(e -> new BackupExport.RecurrenceExceptionData(e.getSourceTransactionId(), e.getOccurrenceDate())).toList(),
+                invoicePaymentRepository.findAll().stream()
+                        .map(p -> new BackupExport.PaymentData(p.getId(), p.getInvoice().getCreditCard().getId(),
+                                p.getInvoice().getBillingMonth(), p.getAccount().getId(), p.getProfile().getId(),
+                                p.getAmount(), p.getPaidOn())).toList()
         );
     }
 
@@ -126,6 +142,11 @@ public class BackupController {
     public ResponseEntity<Map<String, String>> importBackup(@RequestParam("file") MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Arquivo de backup é obrigatório");
+        }
+
+        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
+        if (name.endsWith(".xlsx")) {
+            throw new IllegalArgumentException("Planilha não é aceita para importação; use o JSON ou o CSV");
         }
 
         BackupExport export;
@@ -144,6 +165,13 @@ public class BackupController {
             throw new IllegalArgumentException("Arquivo de backup inválido ou corrompido");
         }
 
+        // Backups antigos não têm pagamentos: a seção é opcional, as demais continuam obrigatórias
+        if (export.invoicePayments() == null) {
+            export = new BackupExport(export.profiles(), export.categories(), export.accounts(), export.cards(),
+                    export.invoices(), export.budgets(), export.goals(), export.transactions(),
+                    export.recurrenceExceptions(), java.util.List.of());
+        }
+
         clearLocalState();
         restore(export);
         return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Backup importado com sucesso"));
@@ -154,6 +182,7 @@ public class BackupController {
         transactionRepository.deleteAllInBatch();
         budgetRepository.deleteAllInBatch();
         goalRepository.deleteAllInBatch();
+        invoicePaymentRepository.deleteAllInBatch();
         creditCardInvoiceRepository.deleteAllInBatch();
         creditCardRepository.deleteAllInBatch();
         bankAccountRepository.deleteAllInBatch();
@@ -189,7 +218,7 @@ public class BackupController {
                 required(categories, data.categoryId(), "categoria"), data.limitAmount(), data.month())));
 
         export.goals().forEach(data -> {
-            Goal goal = new Goal(data.title(), data.targetAmount(), required(profiles, data.profileId(), "perfil"));
+            Goal goal = new Goal(data.title(), data.targetAmount());
             goal.setCurrentAmount(data.currentAmount());
             goalRepository.save(goal);
         });
@@ -222,6 +251,15 @@ public class BackupController {
             export.recurrenceExceptions().forEach(data -> recurrenceExceptionRepository.save(new RecurrenceException(
                     required(transactions, data.sourceTransactionId(), "recorrência").getId(), data.occurrenceDate())));
         }
+
+        // Os saldos e limites já vêm no arquivo; aqui só voltam as linhas de pagamento
+        export.invoicePayments().forEach(data -> invoicePaymentRepository.save(new InvoicePayment(
+                creditCardInvoiceRepository.findByCreditCardIdAndBillingMonth(
+                        required(cards, data.creditCardId(), "cartão").getId(), data.billingMonth())
+                        .orElseThrow(() -> new IllegalArgumentException("Pagamento aponta para fatura inexistente")),
+                required(accounts, data.accountId(), "conta"),
+                required(profiles, data.profileId(), "perfil"),
+                data.amount(), data.paidOn())));
     }
 
     private <T> T required(Map<Long, T> restored, Long oldId, String kind) {

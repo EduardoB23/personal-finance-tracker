@@ -12,11 +12,14 @@ public class CreditCardInvoiceService {
 
     private final CreditCardInvoiceRepository invoiceRepository;
     private final CreditCardRepository creditCardRepository;
+    private final InvoicePaymentRepository paymentRepository;
 
     public CreditCardInvoiceService(CreditCardInvoiceRepository invoiceRepository,
-                                    CreditCardRepository creditCardRepository) {
+                                    CreditCardRepository creditCardRepository,
+                                    InvoicePaymentRepository paymentRepository) {
         this.invoiceRepository = invoiceRepository;
         this.creditCardRepository = creditCardRepository;
+        this.paymentRepository = paymentRepository;
     }
 
     @Transactional
@@ -36,7 +39,12 @@ public class CreditCardInvoiceService {
         YearMonth billingMonth = calculateBillingMonth(card, purchaseDate);
         CreditCardInvoice invoice = invoiceRepository.findByCreditCardIdAndBillingMonth(card.getId(), billingMonth)
                 .orElseThrow(() -> new IllegalStateException("Fatura da compra não encontrada"));
-        invoice.setAmount(invoice.getAmount().subtract(amount));
+        BigDecimal remainingAfter = invoice.getAmount().subtract(amount);
+        // Pagamento já feito não pode ficar acima da fatura (D19 x D34): exclua só depois de estornar
+        if (remainingAfter.compareTo(paymentRepository.sumAmountByInvoiceId(invoice.getId())) < 0) {
+            throw new IllegalArgumentException("Fatura já tem pagamento que impede esta exclusão");
+        }
+        invoice.setAmount(remainingAfter);
         card.setAvailableLimit(card.getAvailableLimit().add(amount));
         creditCardRepository.save(card);
         invoiceRepository.save(invoice);

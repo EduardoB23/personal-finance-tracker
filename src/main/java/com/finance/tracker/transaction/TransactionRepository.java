@@ -9,6 +9,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     List<Transaction> findByInstallmentGroupId(Long installmentGroupId);
 
+    List<Transaction> findByDateBetween(LocalDate start, LocalDate end);
+
     List<Transaction> findByRecurringTrueAndRecurrenceSourceIdIsNull();
 
     boolean existsByRecurrenceSourceIdAndDate(Long recurrenceSourceId, LocalDate date);

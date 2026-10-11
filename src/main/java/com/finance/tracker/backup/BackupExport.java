@@ -19,7 +19,8 @@ public record BackupExport(
         List<BudgetData> budgets,
         List<GoalData> goals,
         List<TransactionData> transactions,
-        List<RecurrenceExceptionData> recurrenceExceptions
+        List<RecurrenceExceptionData> recurrenceExceptions,
+        List<PaymentData> invoicePayments
 ) {
     public record ProfileData(Long id, String name) {}
 
@@ -34,7 +35,7 @@ public record BackupExport(
 
     public record BudgetData(Long id, Long categoryId, BigDecimal limitAmount, YearMonth month) {}
 
-    public record GoalData(Long id, String title, BigDecimal targetAmount, BigDecimal currentAmount, Long profileId) {}
+    public record GoalData(Long id, String title, BigDecimal targetAmount, BigDecimal currentAmount) {}
 
     public record TransactionData(Long id, TransactionType type, String description, Long categoryId,
                                   BigDecimal amount, LocalDate date, Long profileId, Long accountId,
@@ -42,4 +43,8 @@ public record BackupExport(
                                   Long installmentGroupId, Long recurrenceSourceId) {}
 
     public record RecurrenceExceptionData(Long sourceTransactionId, LocalDate occurrenceDate) {}
+
+    // Pagamento aponta para a fatura por cartão e mês, porque os ids de fatura são remapeados na importação
+    public record PaymentData(Long id, Long creditCardId, YearMonth billingMonth, Long accountId, Long profileId,
+                              BigDecimal amount, LocalDate paidOn) {}
 }

@@ -18,9 +18,6 @@ public class Profile {
     @Column(nullable = false)
     private String name;
 
-    @JsonManagedReference("profile-goals")
-    @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Goal> goals = new ArrayList<>();
 
     public Profile() {
     }
@@ -33,6 +30,4 @@ public class Profile {
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-    public List<Goal> getGoals() { return goals; }
-    public void setGoals(List<Goal> goals) { this.goals = goals; }
 }

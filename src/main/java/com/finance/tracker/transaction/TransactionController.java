@@ -19,13 +19,19 @@ public class TransactionController {
     }
 
     @GetMapping("/transactions")
-    public List<Transaction> getTransactions() {
-        return transactionService.getAllTransactions();
+    public List<Transaction> getTransactions(@RequestParam(required = false) String month,
+                                             @RequestParam(required = false) Long profileId) {
+        return transactionService.getTransactions(month, profileId);
     }
 
     @PostMapping("/transactions")
     public ResponseEntity<Transaction> createTransaction(@Valid @RequestBody TransactionRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.createTransaction(request));
+    }
+
+    @PutMapping("/transactions/{transactionId}")
+    public Transaction updateTransaction(@PathVariable Long transactionId, @Valid @RequestBody TransactionRequest request) {
+        return transactionService.updateTransaction(transactionId, request);
     }
 
     @DeleteMapping("/transactions/{transactionId}")

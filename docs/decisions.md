@@ -67,6 +67,8 @@ Decisões tomadas na sessão de alinhamento de 10/10/2026 (entrevista "grilling"
 | D27 | Trabalho em branches, com merge na `main` depois. Commits seguem Conventional Commits, em PT-BR. | Commits direto na `main` |
 | D30 | **O fluxo começa no Linear** (time COD, projeto Personal Finance Tracker): toda entrega ou ajuste nasce como issue, a branch usa o nome sugerido pela issue (`gitBranchName`) e a issue é atualizada a cada marco (planejada, implementada e verificada, PR aberto). Revisa a D26, que tinha retirado o Linear. | Repositório como única fonte de acompanhamento (sem histórico fora do código) |
 | D31 | **Label `AI-READY` dispara a execução automática** no GitHub Actions: um script sem IA consulta o Linear a cada 15 min; havendo issue, o Claude (token da assinatura) roda `tlc-plan` e `tlc-implement` com as skills copiadas em `.claude/skills/` e o workflow abre o PR. A automação para com `AI-NEEDS-INPUT` diante de decisão bloqueante e nunca faz merge. Entrevistas de descoberta ficam só no início do projeto. | Webhook do Linear (exige servidor intermediário ou expor o PC de casa); rotina com IA verificando o Linear (gasta tokens mesmo sem trabalho) |
+| D33 | **PIN bloqueia após 5 tentativas erradas, por 15 minutos.** | Três tentativas; sem bloqueio fixo |
+| D34 | **Pagamento parcial de fatura é permitido**: o restante continua em aberto, e o limite volta só pelo valor pago. | Somente pagamento integral |
 | D32 | **Labels de IA no padrão `AI-*`**, num grupo de seleção única no Linear: `AI-READY`, `AI-WORKING`, `AI-NEEDS-INPUT` e `AI-DONE`. `AI-DONE` fica na issue concluída pela IA (automação ou sessão interativa); sem label `AI-*`, a issue foi feita pelo usuário. | Labels soltas com nomes mistos (`NEEDS-INPUT`) e remoção da label ao concluir - sem registro de quem implementou |
 
 ## Ordem das entregas
@@ -81,5 +83,4 @@ Decisões tomadas na sessão de alinhamento de 10/10/2026 (entrevista "grilling"
 
 ## Em aberto (decidir no `tlc-plan` da entrega correspondente)
 
-- Vai existir pagamento parcial de fatura? (entrega 5)
-- Quantas tentativas erradas de PIN antes de bloquear? (entrega 3)
+Nenhuma pendência no momento. As perguntas da entrega 3 (PIN, D33) e da entrega 5 (pagamento parcial, D34) foram respondidas em 10/10/2026.
