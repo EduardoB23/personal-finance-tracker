@@ -300,8 +300,9 @@ await check('extrato: editar um lançamento simples salva e mostra a atualizaç�
   await page.getByText('Editado no E2E').first().waitFor({ timeout: 5000 })
 })
 
-await check('extrato: parcelas mostram que não podem ser editadas', async () => {
-  await page.getByText('Parcelas e recorrências não podem ser editadas por aqui').first().waitFor({ timeout: 5000 })
+await check('extrato: parcelas também podem ser editadas uma a uma', async () => {
+  const parcelRow = page.locator('li', { hasText: 'Parcela 1/3' }).first()
+  await parcelRow.getByRole('button', { name: 'Editar' }).waitFor({ timeout: 5000 })
 })
 
 await check('extrato: mês vazio mostra mensagem e totais zero', async () => {

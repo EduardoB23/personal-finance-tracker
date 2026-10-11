@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import com.finance.tracker.transaction.TransactionType;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -70,17 +71,61 @@ class TransactionEditApiTest extends IntegrationTest {
     }
 
     @Test
-    void editingInstallmentsIsRefused() throws Exception {
+    void editingOneInstallmentChangesOnlyThatInstallment() throws Exception {
         Profile maria = profile("Maria");
         CreditCard nubank = card("Nubank", "3000");
         Transaction parcel = cardExpense(maria, nubank, "300.00", LocalDate.of(2026, 1, 10), 3);
+        Transaction sibling = transactionService.getAllTransactions().stream()
+                .filter(t -> parcel.getInstallmentGroupId().equals(t.getInstallmentGroupId()) && !t.getId().equals(parcel.getId()))
+                .findFirst().orElseThrow();
+        BigDecimal siblingAmount = sibling.getAmount();
 
-        org.springframework.test.web.servlet.MvcResult result = mockMvc.perform(put("/api/transactions/" + parcel.getId())
-                        .contentType(MediaType.APPLICATION_JSON).content(body(parcel, Map.of("amount", "310.00"))))
+        mockMvc.perform(put("/api/transactions/" + parcel.getId()).contentType(MediaType.APPLICATION_JSON)
+                        .content(body(parcel, Map.of("amount", "120.00"))))
+                .andExpect(status().isOk());
+
+        assertEquals(0, siblingAmount.compareTo(transactionService.getAllTransactions().stream()
+                .filter(t -> t.getId().equals(sibling.getId())).findFirst().orElseThrow().getAmount()));
+    }
+
+    @Test
+    void editingRecurringRuleIsRefused() throws Exception {
+        Profile maria = profile("Maria");
+        BankAccount conjunta = account("Conjunta", "5000");
+        Transaction rule = transactionService.createTransaction(new TransactionRequest(TransactionType.EXPENSE,
+                "Aluguel", expenseCategoryId("Moradia"), new BigDecimal("900.00"), LocalDate.of(2026, 1, 15),
+                maria.getId(), conjunta.getId(), null, true, null));
+
+        org.springframework.test.web.servlet.MvcResult result = mockMvc.perform(put("/api/transactions/" + rule.getId())
+                        .contentType(MediaType.APPLICATION_JSON).content(body(rule, Map.of("amount", "950.00"))))
                 .andExpect(status().isBadRequest())
                 .andReturn();
         assertThat(result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8),
-                containsString("Edição de parcelas e recorrências não é suportada"));
+                containsString("Edição da regra recorrente não é suportada"));
+    }
+
+    @Test
+    void movingRecurringOccurrenceRecordsExceptionForOriginalDay() throws Exception {
+        Profile maria = profile("Maria");
+        BankAccount conjunta = account("Conjunta", "5000");
+        Transaction rule = transactionService.createTransaction(new TransactionRequest(TransactionType.EXPENSE,
+                "Aluguel", expenseCategoryId("Moradia"), new BigDecimal("900.00"), LocalDate.of(2026, 1, 15),
+                maria.getId(), conjunta.getId(), null, true, null));
+        transactionService.processRecurringTransactions(LocalDate.of(2026, 2, 20));
+        Transaction february = transactionService.getAllTransactions().stream()
+                .filter(t -> rule.getId().equals(t.getRecurrenceSourceId()) && t.getDate().equals(LocalDate.of(2026, 2, 15)))
+                .findFirst().orElseThrow();
+
+        mockMvc.perform(put("/api/transactions/" + february.getId()).contentType(MediaType.APPLICATION_JSON)
+                        .content(body(february, Map.of("date", "2026-02-18", "recurring", false))))
+                .andExpect(status().isOk());
+
+        // Reprocessar não recria o dia 15 de fevereiro
+        transactionService.processRecurringTransactions(LocalDate.of(2026, 2, 20));
+        long onOriginalDay = transactionService.getAllTransactions().stream()
+                .filter(t -> rule.getId().equals(t.getRecurrenceSourceId()) && t.getDate().equals(LocalDate.of(2026, 2, 15)))
+                .count();
+        assertEquals(0, onOriginalDay);
     }
 
     @Test

@@ -2,12 +2,9 @@
 import { buildBody, type QuickForm } from './quickEntry.ts'
 import type { Transaction } from './finance.ts'
 
-// Parcelas e recorrências ficam fora da edição nesta versão (decisão do D19 e da entrega 7)
+// Avulso, parcela e ocorrência recorrente são editáveis, uma a uma. A regra recorrente não é (entrega 7)
 export function isEditable(transaction: Transaction): boolean {
-  return transaction.installmentGroupId === null
-    && transaction.recurrenceSourceId === null
-    && !transaction.recurring
-    && (transaction.installmentCount ?? 1) <= 1
+  return !transaction.recurring
 }
 
 export function formFromTransaction(transaction: Transaction): QuickForm {
