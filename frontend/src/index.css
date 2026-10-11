@@ -1,5 +1,7 @@
+@import "tailwindcss";
+
 :root {
-  font: 16px/1.5 'Avenir Next', 'Segoe UI', sans-serif;
+  font-family: 'Avenir Next', 'Segoe UI', sans-serif;
   color: #2d2924;
   background: #e8e4dc;
   font-synthesis: none;
@@ -7,10 +9,6 @@
   -webkit-font-smoothing: antialiased;
 }
 
-#root { min-height: 100svh; }
-
 body {
   margin: 0;
 }
-
-h1, h2, p { margin: 0; }
