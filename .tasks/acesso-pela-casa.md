@@ -135,6 +135,8 @@ stateDiagram-v2
 | --- | --- | --- |
 | Hash do PIN em BCrypt, lido de `FINANCE_PIN_HASH` na subida | variável de ambiente com valor BCrypt (`$2a$` ou `$2b$`); sem variável, o servidor não sobe (critério 1) | PIN em texto ou SHA-256 sem salt: um PIN de 4 dígitos sai por tentativa bruta em segundos se o hash vazar |
 | Cookie de sessão sem `Secure` | `HttpOnly; SameSite=Strict; Max-Age=7776000`, sem `Secure` (critério 4) | `Secure`: o navegador não envia o cookie em HTTP, e o login nunca funciona na Wi‑Fi de casa (D5) |
+| Sessão persistida em tabela H2 | migração `V3__sessao.sql`: tabela `sessao` com `token_hash` (SHA-256 do cookie, chave primária), `criada_em` e `expira_em` (criada + 90 dias); validação consulta a tabela a cada `/api/**` | sessão em memória: some a cada reinício, e a família teria de digitar o PIN de novo com o PC reiniciado, contra os 90 dias da D6 |
+| Início automático por logon | tarefa agendada com gatilho `AtLogOn` no usuário atual (sem administrador) | gatilho de boot: exige rodar como SYSTEM ou administrador, e a variável `FINANCE_PIN_HASH` do usuário não fica visível para a tarefa |
 | Contrato de `POST /api/auth/pin` | entrada `{"pin": string}`; saída `204` com cookie, `401 {message}`, `429 {message}`, `400 {messages.pin}` | token no corpo JSON: a tela teria de guardar e reenviar o token, e o D6 pede cookie `HttpOnly` |
 
 ## Surface
@@ -159,9 +161,9 @@ This task is the record of decision. If a linked document diverges, ask before b
 
 | # | Kind | Question | Until answered |
 | --- | --- | --- | --- |
-| 1 | blocks | Onde a sessão fica guardada: tabela `sessao` no H2 por migração Flyway (sobrevive a reinício) ou só em memória (some a cada reinício)? Recomendação: tabela, porque os 90 dias não fazem sentido se o PC reinicia e a família precisa digitar o PIN de novo | Critérios 14, 15 e 16 escritos assumindo tabela; os demais valem nos dois casos. Limpeza de linhas expiradas fica para o próximo login do mesmo aparelho |
+| 1 | resolved | Sessão em tabela H2 (`V3__sessao.sql`), respondido pelo usuário em 11/10/2026 | - |
 | 2 | blocks go-live | Quem define o PIN real e grava `FINANCE_PIN_HASH` no usuário do Windows antes do primeiro uso? | Servidor não sobe sem a variável (critério 1); a entrega não pode ir ao ar até o usuário gerar o hash e rodar `setx` |
-| 3 | open | Gatilho do início automático: logon (issue, critério 24) ou boot do Windows (D4, "com o Windows")? Recomendação: logon, porque dispensa administrador e a tarefa roda no mesmo usuário que tem a variável | Critério 24 escrito com logon |
+| 3 | resolved | Gatilho do início automático: logon, respondido pelo usuário em 11/10/2026 | - |
 | 4 | open | Formato do PIN: qualquer texto não vazio, ou só dígitos com tamanho mínimo? | Critério 7 valida só vazio |
 | 5 | open | Desenho e copy da tela de PIN: texto do título, rótulo do campo, texto do botão, estado de carregamento e estado vazio | Critério 17 usa "campo de PIN e botão Entrar" sem layout |
 | 6 | open | Nome do `.jar`: a issue diz `personal-finance-tracker.jar`, mas o `pom.xml` gera `personal-finance-tracker-0.0.1-SNAPSHOT.jar`. Recomendação: definir `<finalName>` no `pom.xml` | Critérios 2, 22 e 24 usam o nome da issue |
