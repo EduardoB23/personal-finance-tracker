@@ -11,10 +11,10 @@ function tx(overrides: Partial<Transaction>): Transaction {
   }
 }
 
-test('onlySimpleTransactionsAreEditable', () => {
+test('onlyTheRecurringRuleIsNotEditable', () => {
   assert.equal(isEditable(tx({})), true)
-  assert.equal(isEditable(tx({ installmentGroupId: 5, installmentCount: 3 })), false)
-  assert.equal(isEditable(tx({ recurrenceSourceId: 2 })), false)
+  assert.equal(isEditable(tx({ installmentGroupId: 5, installmentCount: 3 })), true)
+  assert.equal(isEditable(tx({ recurrenceSourceId: 2 })), true)
   assert.equal(isEditable(tx({ recurring: true })), false)
 })
 

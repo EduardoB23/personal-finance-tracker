@@ -238,14 +238,14 @@ public class TransactionService {
         return new Sources(profile, category, account, creditCard, targetAccount);
     }
 
-    // Edita um lançamento simples: estorna o efeito antigo e aplica o novo, na mesma transação
+    // Edita um lançamento: avulso, uma parcela ou uma ocorrência recorrente. Estorna o efeito antigo e aplica o novo
+    // na mesma transação. A regra recorrente não é editada por aqui; o grupo de parcelas não muda como um todo.
     @Transactional
     public Transaction updateTransaction(Long transactionId, TransactionRequest request) {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new IllegalArgumentException("Transação não encontrada"));
-        if (transaction.getInstallmentGroupId() != null || transaction.getRecurrenceSourceId() != null
-                || transaction.isRecurring()) {
-            throw new IllegalArgumentException("Edição de parcelas e recorrências não é suportada");
+        if (transaction.isRecurring()) {
+            throw new IllegalArgumentException("Edição da regra recorrente não é suportada");
         }
         if (request.type() != transaction.getType()) {
             throw new IllegalArgumentException("Tipo do lançamento não pode mudar");
@@ -255,10 +255,15 @@ public class TransactionService {
         }
 
         Sources sources = resolveSources(request);
+        LocalDate originalDate = transaction.getDate();
         applyEffect(transaction, true);
         transaction.edit(request.description().trim(), sources.category(), request.amount(), request.date(),
                 sources.profile(), sources.account(), sources.creditCard(), sources.targetAccount());
         applyEffect(transaction, false);
+        // Ocorrência com data trocada: o dia original não pode ser recriado pelo agendador
+        if (transaction.getRecurrenceSourceId() != null && !originalDate.equals(request.date())) {
+            recurrenceExceptionRepository.save(new RecurrenceException(transaction.getRecurrenceSourceId(), originalDate));
+        }
         return transaction;
     }
 

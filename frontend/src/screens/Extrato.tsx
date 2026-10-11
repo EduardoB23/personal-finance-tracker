@@ -185,7 +185,7 @@ export function Extrato({ profiles, onPinRequired }: { profiles: Profile[]; onPi
                   </div>
                 )}
                 {!editing && !isEditable(transaction) && (
-                  <p className="text-xs text-stone-500">Parcelas e recorrências não podem ser editadas por aqui.</p>
+                  <p className="text-xs text-stone-500">Regras recorrentes não podem ser editadas por aqui.</p>
                 )}
               </li>
             )
