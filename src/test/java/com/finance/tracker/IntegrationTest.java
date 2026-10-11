@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.Map;
 
 // Base dos testes de integração: cada teste roda numa transação desfeita ao final, sobre o H2 em memória
 @SpringBootTest
@@ -89,6 +90,18 @@ public abstract class IntegrationTest {
 
     protected BigDecimal invoiceAmount(CreditCard card, YearMonth billingMonth) {
         return invoiceRepository.findByCreditCardIdAndBillingMonth(card.getId(), billingMonth).orElseThrow().getAmount();
+    }
+
+    // Pagamento de fatura pela API, como a tela faria
+    protected org.springframework.test.web.servlet.MvcResult payInvoice(CreditCard card, String billingMonth,
+                                                                       BankAccount account, Profile profile,
+                                                                       String amount, LocalDate date) throws Exception {
+        Map<String, Object> body = Map.of("accountId", account.getId(), "profileId", profile.getId(),
+                "amount", new BigDecimal(amount), "date", date.toString());
+        return mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/api/credit-cards/" + card.getId() + "/invoices/" + billingMonth + "/payments")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(json(body)))
+                .andReturn();
     }
 
     protected String json(Object value) throws Exception {

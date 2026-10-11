@@ -5,6 +5,8 @@ import com.finance.tracker.account.BankAccountRepository;
 import com.finance.tracker.account.CreditCard;
 import com.finance.tracker.account.CreditCardInvoice;
 import com.finance.tracker.account.CreditCardInvoiceRepository;
+import com.finance.tracker.account.InvoicePayment;
+import com.finance.tracker.account.InvoicePaymentRepository;
 import com.finance.tracker.account.CreditCardRepository;
 import com.finance.tracker.budget.Budget;
 import com.finance.tracker.budget.BudgetRepository;
@@ -43,6 +45,7 @@ public class BackupController {
     private final BankAccountRepository bankAccountRepository;
     private final CreditCardRepository creditCardRepository;
     private final CreditCardInvoiceRepository creditCardInvoiceRepository;
+    private final InvoicePaymentRepository invoicePaymentRepository;
     private final BudgetRepository budgetRepository;
     private final GoalRepository goalRepository;
     private final TransactionRepository transactionRepository;
@@ -61,7 +64,9 @@ public class BackupController {
                             GoalRepository goalRepository,
                             TransactionRepository transactionRepository,
                             RecurrenceExceptionRepository recurrenceExceptionRepository,
+                            InvoicePaymentRepository invoicePaymentRepository,
                             ObjectMapper objectMapper) {
+        this.invoicePaymentRepository = invoicePaymentRepository;
         this.profileRepository = profileRepository;
         this.categoryRepository = categoryRepository;
         this.bankAccountRepository = bankAccountRepository;
@@ -116,7 +121,11 @@ public class BackupController {
                                 t.getTargetAccountId(), t.getCreditCardId(), t.isRecurring(), t.getInstallmentCount(),
                                 t.getInstallmentGroupId(), t.getRecurrenceSourceId())).toList(),
                 recurrenceExceptionRepository.findAll().stream()
-                        .map(e -> new BackupExport.RecurrenceExceptionData(e.getSourceTransactionId(), e.getOccurrenceDate())).toList()
+                        .map(e -> new BackupExport.RecurrenceExceptionData(e.getSourceTransactionId(), e.getOccurrenceDate())).toList(),
+                invoicePaymentRepository.findAll().stream()
+                        .map(p -> new BackupExport.PaymentData(p.getId(), p.getInvoice().getCreditCard().getId(),
+                                p.getInvoice().getBillingMonth(), p.getAccount().getId(), p.getProfile().getId(),
+                                p.getAmount(), p.getPaidOn())).toList()
         );
     }
 
@@ -144,6 +153,13 @@ public class BackupController {
             throw new IllegalArgumentException("Arquivo de backup inválido ou corrompido");
         }
 
+        // Backups antigos não têm pagamentos: a seção é opcional, as demais continuam obrigatórias
+        if (export.invoicePayments() == null) {
+            export = new BackupExport(export.profiles(), export.categories(), export.accounts(), export.cards(),
+                    export.invoices(), export.budgets(), export.goals(), export.transactions(),
+                    export.recurrenceExceptions(), java.util.List.of());
+        }
+
         clearLocalState();
         restore(export);
         return ResponseEntity.status(HttpStatus.OK).body(Map.of("message", "Backup importado com sucesso"));
@@ -154,6 +170,7 @@ public class BackupController {
         transactionRepository.deleteAllInBatch();
         budgetRepository.deleteAllInBatch();
         goalRepository.deleteAllInBatch();
+        invoicePaymentRepository.deleteAllInBatch();
         creditCardInvoiceRepository.deleteAllInBatch();
         creditCardRepository.deleteAllInBatch();
         bankAccountRepository.deleteAllInBatch();
@@ -222,6 +239,15 @@ public class BackupController {
             export.recurrenceExceptions().forEach(data -> recurrenceExceptionRepository.save(new RecurrenceException(
                     required(transactions, data.sourceTransactionId(), "recorrência").getId(), data.occurrenceDate())));
         }
+
+        // Os saldos e limites já vêm no arquivo; aqui só voltam as linhas de pagamento
+        export.invoicePayments().forEach(data -> invoicePaymentRepository.save(new InvoicePayment(
+                creditCardInvoiceRepository.findByCreditCardIdAndBillingMonth(
+                        required(cards, data.creditCardId(), "cartão").getId(), data.billingMonth())
+                        .orElseThrow(() -> new IllegalArgumentException("Pagamento aponta para fatura inexistente")),
+                required(accounts, data.accountId(), "conta"),
+                required(profiles, data.profileId(), "perfil"),
+                data.amount(), data.paidOn())));
     }
 
     private <T> T required(Map<Long, T> restored, Long oldId, String kind) {

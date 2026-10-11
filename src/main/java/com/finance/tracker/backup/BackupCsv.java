@@ -21,7 +21,7 @@ final class BackupCsv {
             "dueDay", "creditCardId", "billingMonth", "amount", "dueDate", "categoryId", "month", "title",
             "targetAmount", "currentAmount", "profileId", "description", "date", "accountId", "targetAccountId",
             "recurring", "installmentCount", "installmentGroupId", "recurrenceSourceId", "sourceTransactionId",
-            "occurrenceDate");
+            "occurrenceDate", "paidOn");
 
     private BackupCsv() {
     }
@@ -62,6 +62,9 @@ final class BackupCsv {
         });
         export.recurrenceExceptions().forEach(e -> row(csv, "RECURRENCE_EXCEPTION",
                 Map.of("sourceTransactionId", e.sourceTransactionId(), "occurrenceDate", e.occurrenceDate())));
+        export.invoicePayments().forEach(p -> row(csv, "INVOICE_PAYMENT", Map.of("id", p.id(),
+                "creditCardId", p.creditCardId(), "billingMonth", p.billingMonth(), "accountId", p.accountId(),
+                "profileId", p.profileId(), "amount", p.amount(), "paidOn", p.paidOn())));
         return csv.toString();
     }
 
@@ -81,6 +84,7 @@ final class BackupCsv {
         List<BackupExport.GoalData> goals = new ArrayList<>();
         List<BackupExport.TransactionData> transactions = new ArrayList<>();
         List<BackupExport.RecurrenceExceptionData> exceptions = new ArrayList<>();
+        List<BackupExport.PaymentData> payments = new ArrayList<>();
 
         for (int index = 1; index < lines.length; index++) {
             if (lines[index].isBlank()) {
@@ -115,10 +119,14 @@ final class BackupCsv {
                         longValue(row, "installmentGroupId"), longValue(row, "recurrenceSourceId")));
                 case "RECURRENCE_EXCEPTION" -> exceptions.add(new BackupExport.RecurrenceExceptionData(
                         longValue(row, "sourceTransactionId"), LocalDate.parse(row.get("occurrenceDate"))));
+                case "INVOICE_PAYMENT" -> payments.add(new BackupExport.PaymentData(longValue(row, "id"),
+                        longValue(row, "creditCardId"), YearMonth.parse(row.get("billingMonth")),
+                        longValue(row, "accountId"), longValue(row, "profileId"), decimal(row, "amount"),
+                        LocalDate.parse(row.get("paidOn"))));
                 case null, default -> throw new IllegalArgumentException("Tipo de registro CSV inválido");
             }
         }
-        return new BackupExport(profiles, categories, accounts, cards, invoices, budgets, goals, transactions, exceptions);
+        return new BackupExport(profiles, categories, accounts, cards, invoices, budgets, goals, transactions, exceptions, payments);
     }
 
     private static void row(StringBuilder csv, String entity, Map<String, ?> values) {
