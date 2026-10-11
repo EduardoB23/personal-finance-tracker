@@ -15,7 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -47,6 +50,39 @@ public class TransactionService {
 
     public List<Transaction> getAllTransactions() {
         return transactionRepository.findAll();
+    }
+
+    /**
+     * Extrato: sem parâmetros devolve tudo; com {@code month} (AAAA-MM) restringe às datas do mês,
+     * do mais recente para o mais antigo; {@code profileId} restringe a uma pessoa.
+     */
+    public List<Transaction> getTransactions(String month, Long profileId) {
+        if (month == null && profileId == null) {
+            return getAllTransactions();
+        }
+        List<Transaction> transactions = month == null
+                ? transactionRepository.findAll()
+                : transactionRepository.findByDateBetween(startOfMonth(month), endOfMonth(month));
+        return transactions.stream()
+                .filter(transaction -> profileId == null || transaction.getProfile().getId().equals(profileId))
+                .sorted(Comparator.comparing(Transaction::getDate).thenComparing(Transaction::getId).reversed())
+                .toList();
+    }
+
+    private static LocalDate startOfMonth(String month) {
+        return parseMonth(month).atDay(1);
+    }
+
+    private static LocalDate endOfMonth(String month) {
+        return parseMonth(month).atEndOfMonth();
+    }
+
+    private static YearMonth parseMonth(String month) {
+        try {
+            return YearMonth.parse(month);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("Mês inválido, use o formato AAAA-MM");
+        }
     }
 
     @Transactional

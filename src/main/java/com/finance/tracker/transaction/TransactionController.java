@@ -19,8 +19,9 @@ public class TransactionController {
     }
 
     @GetMapping("/transactions")
-    public List<Transaction> getTransactions() {
-        return transactionService.getAllTransactions();
+    public List<Transaction> getTransactions(@RequestParam(required = false) String month,
+                                             @RequestParam(required = false) Long profileId) {
+        return transactionService.getTransactions(month, profileId);
     }
 
     @PostMapping("/transactions")
