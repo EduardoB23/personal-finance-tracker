@@ -12,7 +12,7 @@ export function Configuracoes({ onBack, onImported, onPinRequired }: {
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [sending, setSending] = useState(false)
 
-  async function exportBackup(format: 'json' | 'csv') {
+  async function exportBackup(format: 'json' | 'csv' | 'xlsx') {
     setFeedback(null)
     const response = await fetch(`/api/backup/export?format=${format}`)
     if (response.status === 401) return onPinRequired()
@@ -67,6 +67,7 @@ export function Configuracoes({ onBack, onImported, onPinRequired }: {
         <h2 className="font-semibold">Exportar dados</h2>
         <button type="button" onClick={() => void exportBackup('json')} className="rounded-lg bg-emerald-700 py-3 font-semibold text-white">Exportar JSON</button>
         <button type="button" onClick={() => void exportBackup('csv')} className="rounded-lg border border-stone-400 py-3 font-semibold">Exportar CSV</button>
+        <button type="button" onClick={() => void exportBackup('xlsx')} className="rounded-lg border border-stone-400 py-3 font-semibold">Exportar Excel (leitura)</button>
       </section>
 
       <section aria-label="Importar" className="grid gap-3 rounded-xl bg-white p-4">

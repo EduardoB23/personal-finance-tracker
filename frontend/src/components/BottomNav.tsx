@@ -1,4 +1,4 @@
-export type Tab = 'resumo' | 'lancar' | 'extrato' | 'cadastro' | 'configuracoes'
+export type Tab = 'resumo' | 'lancar' | 'extrato' | 'cadastro' | 'configuracoes' | 'orcamentos' | 'metas'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'resumo', label: 'Resumo' },

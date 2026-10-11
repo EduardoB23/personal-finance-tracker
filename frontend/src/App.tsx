@@ -4,6 +4,8 @@ import { BottomNav, type Tab } from './components/BottomNav.tsx'
 import { currentMonth } from './lib/finance.ts'
 import { Cadastro } from './screens/Cadastro.tsx'
 import { Configuracoes } from './screens/Configuracoes.tsx'
+import { Orcamentos } from './screens/Orcamentos.tsx'
+import { Metas } from './screens/Metas.tsx'
 import { Extrato } from './screens/Extrato.tsx'
 import { Lancar } from './screens/Lancar.tsx'
 import { PinScreen } from './screens/PinScreen.tsx'
@@ -47,6 +49,9 @@ function App() {
   }
   if (loadError) return <p role="alert" className="p-4 text-red-700">{loadError}</p>
   if (profiles === null) return <p className="p-4 text-stone-600">Carregando...</p>
+
+  if (tab === 'orcamentos') return <Orcamentos onBack={() => setTab('resumo')} onPinRequired={requirePin} />
+  if (tab === 'metas') return <Metas profiles={profiles} onBack={() => setTab('resumo')} onPinRequired={requirePin} />
 
   if (tab === 'configuracoes') {
     return (
@@ -92,6 +97,8 @@ function App() {
           onTrocar={() => setPicking(true)}
           onCadastros={() => setTab('cadastro')}
           onConfiguracoes={() => setTab('configuracoes')}
+          onOrcamentos={() => setTab('orcamentos')}
+          onMetas={() => setTab('metas')}
           onPinRequired={requirePin}
         />
       )}

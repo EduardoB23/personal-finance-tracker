@@ -318,6 +318,40 @@ await check('backup: nenhum aviso de falha no Resumo', async () => {
   await page.getByRole('heading', { name: 'Resumo familiar' }).waitFor({ timeout: 10000 })
   assert((await page.getByText('Backup automático falhou').count()) === 0, 'aviso de falha aparece sem falha')
 })
+await check('orcamentos: criar mostra o orçamento e repete o erro de duplicado', async () => {
+  await page.getByRole('button', { name: 'Orçamentos' }).click()
+  await page.getByRole('heading', { name: 'Orçamentos' }).waitFor({ timeout: 5000 })
+  await page.getByLabel('Categoria do orçamento').selectOption({ label: 'Alimentação' })
+  await page.getByLabel('Limite do orçamento').fill('500')
+  await page.getByRole('button', { name: 'Criar orçamento' }).click()
+  await page.getByText('Orçamento criado').waitFor({ timeout: 10000 })
+  await page.getByLabel('Categoria do orçamento').selectOption({ label: 'Alimentação' })
+  await page.getByLabel('Limite do orçamento').fill('600')
+  await page.getByRole('button', { name: 'Criar orçamento' }).click()
+  await page.getByText('Já existe orçamento para esta categoria neste mês').waitFor({ timeout: 5000 })
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  assert(overflow <= 0, `rolagem horizontal de ${overflow}px em Orçamentos`)
+})
+
+await check('metas: criar meta e aportar mostra o progresso', async () => {
+  await page.getByRole('button', { name: 'Voltar' }).click()
+  await page.getByRole('button', { name: 'Metas' }).click()
+  await page.getByRole('heading', { name: 'Metas' }).waitFor({ timeout: 5000 })
+  await page.getByLabel('Título da meta').fill('Viagem')
+  await page.getByLabel('Valor alvo').fill('1000')
+  await page.getByLabel('Perfil da meta').selectOption({ label: 'Maria' })
+  await page.getByRole('button', { name: 'Criar meta' }).click()
+  await page.getByText('Meta criada').waitFor({ timeout: 10000 })
+  await page.getByLabel('Aporte para Viagem').fill('250')
+  await page.getByRole('button', { name: 'Aportar' }).click()
+  await page.getByText('Aporte registrado').waitFor({ timeout: 10000 })
+  await page.getByText('25% da meta').waitFor({ timeout: 5000 })
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  assert(overflow <= 0, `rolagem horizontal de ${overflow}px em Metas`)
+})
+
+await page.getByRole('button', { name: 'Voltar' }).click()
+await page.getByRole('button', { name: 'Resumo', exact: true }).click()
 await page.getByRole('button', { name: 'Configurações' }).click()
 await page.getByRole('heading', { name: 'Configurações' }).waitFor({ timeout: 5000 })
 
@@ -326,6 +360,13 @@ await check('backup: exportar JSON baixa finance-backup.json', async () => {
   await page.getByRole('button', { name: 'Exportar JSON' }).click()
   const download = await downloadPromise
   assert(download.suggestedFilename() === 'finance-backup.json', `arquivo ${download.suggestedFilename()}`)
+})
+
+await check('backup: exportar Excel baixa finance-backup.xlsx', async () => {
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Exportar Excel (leitura)' }).click()
+  const download = await downloadPromise
+  assert(download.suggestedFilename() === 'finance-backup.xlsx', `arquivo ${download.suggestedFilename()}`)
 })
 
 await check('backup: exportar CSV baixa finance-backup.csv', async () => {

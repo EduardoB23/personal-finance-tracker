@@ -84,11 +84,18 @@ public class BackupController {
     public ResponseEntity<ByteArrayResource> exportBackup(
             @RequestParam(defaultValue = "json") String format) throws Exception {
         boolean csv = "csv".equalsIgnoreCase(format);
-        if (!csv && !"json".equalsIgnoreCase(format)) {
-            throw new IllegalArgumentException("Formato de backup deve ser JSON ou CSV");
+        boolean xlsx = "xlsx".equalsIgnoreCase(format);
+        if (!csv && !xlsx && !"json".equalsIgnoreCase(format)) {
+            throw new IllegalArgumentException("Formato de backup deve ser JSON, CSV ou XLSX");
         }
 
         BackupExport export = createExport();
+        if (xlsx) {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            headers.setContentDispositionFormData("attachment", "finance-backup.xlsx");
+            return ResponseEntity.ok().headers(headers).body(new ByteArrayResource(BackupXlsx.write(export)));
+        }
         String content = csv ? BackupCsv.write(export) : objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(export);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(csv ? MediaType.parseMediaType("text/csv") : MediaType.APPLICATION_JSON);
@@ -135,6 +142,11 @@ public class BackupController {
     public ResponseEntity<Map<String, String>> importBackup(@RequestParam("file") MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Arquivo de backup é obrigatório");
+        }
+
+        String name = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
+        if (name.endsWith(".xlsx")) {
+            throw new IllegalArgumentException("Planilha não é aceita para importação; use o JSON ou o CSV");
         }
 
         BackupExport export;

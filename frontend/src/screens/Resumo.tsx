@@ -14,13 +14,15 @@ type BudgetSummary = {
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
-export function Resumo({ profileId, personName, currentMonth, onTrocar, onCadastros, onConfiguracoes, onPinRequired }: {
+export function Resumo({ profileId, personName, currentMonth, onTrocar, onCadastros, onConfiguracoes, onOrcamentos, onMetas, onPinRequired }: {
   profileId: number
   personName: string
   currentMonth: string
   onTrocar: () => void
   onCadastros: () => void
   onConfiguracoes: () => void
+  onOrcamentos: () => void
+  onMetas: () => void
   onPinRequired: () => void
 }) {
   const [backup, setBackup] = useState<{ lastError: string | null; lastSuccessAt: string | null } | null>(null)
@@ -121,6 +123,8 @@ export function Resumo({ profileId, personName, currentMonth, onTrocar, onCadast
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={onCadastros} className="rounded-lg border border-stone-400 bg-white py-3 text-sm font-medium">Cadastros</button>
         <button type="button" onClick={onConfiguracoes} className="rounded-lg border border-stone-400 bg-white py-3 text-sm font-medium">Configurações</button>
+        <button type="button" onClick={onOrcamentos} className="rounded-lg border border-stone-400 bg-white py-3 text-sm font-medium">Orçamentos</button>
+        <button type="button" onClick={onMetas} className="rounded-lg border border-stone-400 bg-white py-3 text-sm font-medium">Metas</button>
       </div>
     </section>
   )
